@@ -1,0 +1,187 @@
+"use client";
+
+import { Download } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { DataTable, type Column } from "@/components/data-table";
+import { Button } from "@/components/ui/button";
+import { Badge, Select, statusVariant } from "@/components/ui/primitives";
+import { toast } from "@/components/ui/toast";
+import { ApiError, api, saveBlob } from "@/lib/api/client";
+import type { InvoiceListItem } from "@/lib/api/types";
+import { formatDate, formatMoney } from "@/lib/format";
+import { translateError, useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
+import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useAuth } from "@/lib/stores/auth";
+
+export default function InvoicesPage() {
+  const t = useTranslation();
+  const { locale } = useLocale();
+  const router = useRouter();
+  const can = useAuth((state) => state.can);
+  const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
+    search: "",
+    filter: "",
+  });
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const debouncedSearch = useDebounced(filters.search);
+
+  const query = usePaginatedQuery<InvoiceListItem>("/invoicing/invoices/", {
+    search: debouncedSearch || undefined,
+    overdue: filters.filter === "overdue" ? true : undefined,
+    unpaid: filters.filter === "unpaid" ? true : undefined,
+    status: filters.filter === "draft" ? "DRAFT" : undefined,
+  });
+
+  const downloadPdf = async (invoice: InvoiceListItem) => {
+    setDownloading(invoice.id);
+    try {
+      // The PDF renders in the viewer's language; the backend also records
+      // the print and stamps any copy after the first as a duplicate.
+      const blob = await api.download(
+        `/invoicing/invoices/${invoice.id}/pdf/`,
+        { language: locale },
+      );
+      saveBlob(blob, `${invoice.invoice_number}.pdf`);
+    } catch (caught) {
+      toast.error(
+        t.toasts.pdfFailed,
+        caught instanceof ApiError ? translateError(caught, t) : undefined,
+      );
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const columns: Column<InvoiceListItem>[] = [
+    {
+      key: "number",
+      header: t.invoicing.invoiceNumber,
+      render: (row) => (
+        <span className="font-mono text-xs font-medium">
+          {row.invoice_number}
+        </span>
+      ),
+    },
+    {
+      key: "customer",
+      header: t.sales.customer,
+      render: (row) => (
+        <div className="min-w-0">
+          <p className="truncate font-medium">{row.customer_name}</p>
+          {row.customer_nif && (
+            <p className="truncate text-xs text-muted-foreground">
+              NIF {row.customer_nif}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "date",
+      header: t.invoicing.invoiceDate,
+      render: (row) => (
+        <span className="tabular-nums">{formatDate(row.invoice_date)}</span>
+      ),
+    },
+    {
+      key: "due",
+      header: t.invoicing.dueDate,
+      render: (row) =>
+        row.due_date ? (
+          <div className="flex items-center gap-2">
+            <span className="tabular-nums">{formatDate(row.due_date)}</span>
+            {row.is_overdue && (
+              <Badge variant="destructive">
+                {row.days_overdue} {t.invoicing.daysOverdue}
+              </Badge>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "total",
+      header: t.invoicing.totalAmount,
+      numeric: true,
+      render: (row) => formatMoney(row.total_amount),
+    },
+    {
+      key: "balance",
+      header: t.invoicing.balanceDue,
+      numeric: true,
+      render: (row) => (
+        <span className={row.is_overdue ? "font-semibold text-destructive" : undefined}>
+          {formatMoney(row.balance_due)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: t.common.status,
+      render: (row) => (
+        <Badge variant={statusVariant(row.status)}>
+          {t.status[row.status as keyof typeof t.status] ?? row.status}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (row) =>
+        can("invoicing.print_invoice") ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            loading={downloading === row.id}
+            onClick={() => void downloadPdf(row)}
+            aria-label={t.invoicing.downloadPdf}
+          >
+            <Download className="h-4 w-4" />
+          </Button>
+        ) : null,
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-semibold">{t.nav.invoices}</h1>
+        <p className="text-sm text-muted-foreground">{t.nav.invoicing}</p>
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={query.items}
+        rowKey={(row) => row.id}
+        loading={query.loading}
+        error={query.error}
+        onRetry={query.refetch}
+        search={filters.search}
+        onSearchChange={(value) => setFilter("search", value)}
+        isFiltered={isFiltered}
+        onClearFilters={clearFilters}
+        page={query.page}
+        totalPages={query.totalPages}
+        count={query.count}
+        onPageChange={query.setPage}
+        onRowClick={(row) => router.push(`/invoicing/invoices/${row.id}`)}
+        toolbar={
+          <Select
+            value={filters.filter}
+            onChange={(event) => setFilter("filter", event.target.value)}
+            className="w-48"
+            aria-label={t.common.filter}
+          >
+            <option value="">{t.common.all}</option>
+            <option value="unpaid">{t.dashboard.outstandingInvoices}</option>
+            <option value="overdue">{t.invoicing.overdue}</option>
+            <option value="draft">{t.status.DRAFT}</option>
+          </Select>
+        }
+      />
+    </div>
+  );
+}

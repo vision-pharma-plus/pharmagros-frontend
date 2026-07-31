@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Deep green: reads as pharmaceutical/clinical rather than corporate blue,
+       and holds enough contrast against white for AA text at small sizes. */
+    --primary: 156 68% 19%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 156 68% 28%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 32 85% 38%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 156 68% 19%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 96%;
+    --primary: 156 55% 42%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 210 40% 96%;
+    --success: 156 55% 45%;
+    --success-foreground: 222 47% 8%;
+    --warning: 32 90% 55%;
+    --warning-foreground: 222 47% 8%;
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 156 55% 42%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Money and quantity columns line up only with tabular figures. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  /**
+   * Print rules for invoices and reports viewed in the browser.
+   *
+   * Invoices are a print artefact here, so printing must yield the document
+   * and nothing else: the sidebar, header, toasts and action buttons are all
+   * screen furniture and are dropped.
+   */
+  @media print {
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    .no-print,
+    aside,
+    header,
+    nav,
+    [role="status"],
+    [data-radix-popper-content-wrapper] {
+      display: none !important;
+    }
+
+    body {
+      background: white;
+    }
+
+    /* The app shell constrains and scrolls the main area for the viewport;
+       on paper the content must flow naturally across pages. */
+    main {
+      padding: 0 !important;
+      overflow: visible !important;
+    }
+
+    .print-full-width {
+      max-width: none !important;
+      width: 100% !important;
+    }
+
+    /* Cards read as boxes on screen; on paper the borders and shadows only
+       add noise around the figures. */
+    .print-plain {
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+
+    /* Never split a line-item table row across two pages. */
+    tr {
+      break-inside: avoid;
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# Node
+node_modules
+.next
+dev-server.log
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Secrets — never commit
+.env*.local
+*.pem
+/docker/nginx/certs/
+
+# Tooling
+.idea/
+.vscode/
