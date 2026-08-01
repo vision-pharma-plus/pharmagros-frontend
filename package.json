@@ -12,7 +12,7 @@
     "i18n:fix": "node scripts/i18n-scan.mjs --fix"
   },
   "dependencies": {
-    "next": "15.1.6",
+    "next": "15.5.22",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "zustand": "5.0.3",
@@ -43,6 +43,6 @@
     "autoprefixer": "10.4.20",
     "tailwindcss-animate": "1.0.7",
     "eslint": "9.18.0",
-    "eslint-config-next": "15.1.6"
+    "eslint-config-next": "15.5.22"
   }
 }
