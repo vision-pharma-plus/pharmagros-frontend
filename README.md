@@ -39,7 +39,7 @@ its default port, the shipped `.env.local.example` needs no changes.
 If the backend was seeded with `python manage.py seed_demo`:
 
 ```
-admin@pharmagros.bi / Demo!2026#Pharma
+visionpharmaplus@gmail.com / Demo!2026#Pharma
 ```
 
 ---

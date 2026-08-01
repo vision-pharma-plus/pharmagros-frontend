@@ -82,6 +82,12 @@ export interface MedicineListItem {
   manufacturer_name: string;
   unit_code: string;
   selling_price: Money;
+  /**
+   * Catalogue *reference* cost, not the price of any actual purchase. Offered
+   * as the starting value for a purchase order line; the real cost of stock is
+   * the received batch's landed cost.
+   */
+  unit_cost: Money;
   status: string;
   requires_prescription: boolean;
   is_controlled: boolean;
@@ -95,7 +101,6 @@ export interface Medicine extends MedicineListItem {
   pack_size: string;
   manufacturer: UUID | null;
   unit_of_measure: UUID;
-  unit_cost: Money;
   wholesale_price: Money;
   vat_rate: string;
   is_vat_exempt: boolean;
@@ -392,6 +397,49 @@ export interface Sale extends SaleListItem {
   lines: SaleLine[];
   /** Present on the confirm response. */
   invoice_id?: string | null;
+  /**
+   * Present on the confirm response for a cash sale, which closes with a
+   * receipt rather than an invoice.
+   */
+  receipt_id?: string | null;
+  receipt_number?: string | null;
+}
+
+export interface SalesReceiptListItem {
+  id: UUID;
+  receipt_number: string;
+  sale: UUID;
+  sale_number: string;
+  customer: UUID;
+  customer_name: string;
+  issued_at: string;
+  payment_method: string;
+  total_amount: Money;
+  is_cancelled: boolean;
+  /** Whether an invoice was later raised for this same sale. */
+  has_invoice: boolean;
+  invoice_number: string | null;
+}
+
+export interface SalesReceipt extends SalesReceiptListItem {
+  sale_status: string;
+  customer_nif: string;
+  payment_reference: string;
+  subtotal: Money;
+  discount_amount: Money;
+  tax_amount: Money;
+  amount_tendered: Money;
+  change_given: Money;
+  issued_by: UUID | null;
+  notes: string;
+  print_count: number;
+  last_printed_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string;
+  invoice_id: string | null;
+  /** The sale's lines, which the receipt renders as its own. */
+  lines: SaleLine[];
+  created_at: string;
 }
 
 export interface RecallRecipient {
@@ -464,7 +512,54 @@ export interface InvoiceLine {
   tax_amount: Money;
   line_subtotal: Money;
   line_total: Money;
+
+  // The sale line this was billed from, and what is still returnable on it.
+  // Null when the invoice has no sale behind it (a manually raised invoice),
+  // in which case a credit note can only be a financial correction — there
+  // are no batch allocations to return stock into.
+  sale_line: number | null;
+  returnable_quantity: Quantity | null;
 }
+
+/** Why an issued invoice was corrected. */
+export type CreditNoteReason =
+  | "WRONG_QUANTITY"
+  | "WRONG_PRICE"
+  | "GOODS_RETURNED"
+  | "GOODS_DAMAGED"
+  | "DISCOUNT_GRANTED"
+  | "OTHER";
+
+/** The two reasons that mean stock physically came back. */
+export const GOODS_RETURN_REASONS: readonly CreditNoteReason[] = [
+  "GOODS_RETURNED",
+  "GOODS_DAMAGED",
+];
+
+/** A credit note as it appears on the invoice it corrects. */
+export interface InvoiceCorrection {
+  id: UUID;
+  invoice_number: string;
+  invoice_type: string;
+  status: string;
+  invoice_date: string;
+  total_amount: Money;
+  credit_reason_code: CreditNoteReason | "";
+  notes: string;
+}
+
+/**
+ * Where a document stands with the OBR.
+ *
+ * Tracked separately from `status`: commercial state (is it paid?) and fiscal
+ * state (is it declared?) move independently, so one field cannot answer both.
+ */
+export type FiscalStatus =
+  | "NOT_REQUIRED"
+  | "PENDING"
+  | "DECLARED"
+  | "REJECTED"
+  | "CANCELLED";
 
 export interface InvoiceListItem {
   id: UUID;
@@ -482,6 +577,7 @@ export interface InvoiceListItem {
   balance_due: Money;
   is_overdue: boolean;
   days_overdue: number;
+  fiscal_status: FiscalStatus;
 }
 
 export interface Invoice extends InvoiceListItem {
@@ -505,9 +601,24 @@ export interface Invoice extends InvoiceListItem {
   print_count: number;
   original_invoice: UUID | null;
   original_invoice_number: string | null;
+  credit_reason_code: CreditNoteReason | "";
+  corrections: InvoiceCorrection[];
   is_editable: boolean;
   payment_progress: string;
   lines: InvoiceLine[];
+
+  // --- OBR declaration ---
+  // The signature is computed locally at posting time; everything else
+  // arrives from the OBR on acceptance and stays empty until then.
+  fiscal_signature: string;
+  obr_registered_number: string;
+  obr_registered_at: string | null;
+  obr_electronic_signature: string;
+  declared_at: string | null;
+  declaration_attempts: number;
+  last_declaration_error: string;
+  is_declared: boolean;
+  declaration_exhausted: boolean;
 }
 
 export interface Payment {

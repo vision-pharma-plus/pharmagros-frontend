@@ -45,6 +45,12 @@ interface OrderLine {
   productName: string;
   quantity: string;
   unitCost: string;
+  /**
+   * The catalogue reference cost of the selected product, kept beside the
+   * entered cost so the hint can show what the reference was even after the
+   * buyer overwrites the field with the supplier's actual quote.
+   */
+  catalogCost: string;
   discountPercent: string;
   expectedExpiry: string;
 }
@@ -56,6 +62,7 @@ const newLine = (over: Partial<OrderLine> = {}): OrderLine => ({
   productName: "",
   quantity: "",
   unitCost: "",
+  catalogCost: "",
   discountPercent: "",
   expectedExpiry: "",
   ...over,
@@ -102,6 +109,10 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
             productName: line.product_name,
             quantity: line.quantity_ordered,
             unitCost: line.unit_cost,
+            // Deliberately left blank: on an existing order the agreed cost is
+            // authoritative, and showing today's catalogue reference beside it
+            // would invite someone to "correct" a price already placed.
+            catalogCost: "",
             discountPercent: line.discount_percent,
             expectedExpiry: line.expected_expiry_date ?? "",
           }),
@@ -136,6 +147,12 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
       t.blockers.productMissing,
     startedLines.some((line) => !(num(line.quantity) > 0)) &&
       t.blockers.quantityMissing,
+    // A zero unit cost previously sailed through — the field is only required
+    // in the markup, and the payload coerces "" to "0". That produced a
+    // valueless order line and, on receipt, a zero-cost batch that silently
+    // understates inventory value.
+    startedLines.some((line) => !(num(line.unitCost) > 0)) &&
+      t.purchasing.unitCostZeroWarning,
   ].filter((entry): entry is string => typeof entry === "string");
 
   const canSubmit = readyLines.length > 0 && blockers.length === 0;
@@ -229,6 +246,7 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
             <Field label={t.purchasing.supplier} required>
               <ReferenceSelect
                 resource="supplier"
+                emptyLabel={t.blockers.selectSupplier}
                 value={supplier}
                 onChange={(event) => setSupplier(event.target.value)}
               />
@@ -236,6 +254,7 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
             <Field label={t.purchasing.deliveryWarehouse} required>
               <ReferenceSelect
                 resource="warehouse"
+                emptyLabel={t.blockers.selectWarehouse}
                 value={warehouse}
                 onChange={(event) => setWarehouse(event.target.value)}
               />
@@ -298,6 +317,15 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
                     updateLine(line.key, {
                       product,
                       productName: product?.display_name ?? "",
+                      catalogCost: product?.unit_cost ?? "",
+                      // Seed the catalogue reference so the common case — the
+                      // supplier charges the expected price — needs no typing.
+                      // Only ever fills a blank field: a cost already entered
+                      // is the buyer's, and swapping the product underneath it
+                      // must not silently discard a negotiated figure.
+                      ...(line.unitCost === "" && product
+                        ? { unitCost: product.unit_cost }
+                        : {}),
                     })
                   }
                   getKey={(item) => item.id}
@@ -323,7 +351,22 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
                     }
                   />
                 </Field>
-                <Field label={t.purchasing.unitCost} required>
+                <Field
+                  label={t.purchasing.unitCost}
+                  // Showing the catalogue figure alongside — rather than only
+                  // as a prefill — keeps the two costs visibly distinct: this
+                  // input is what the supplier charges, the hint is what the
+                  // catalogue expected.
+                  hint={
+                    num(line.catalogCost) > 0
+                      ? t.purchasing.unitCostCatalogHint.replace(
+                          "%{cost}",
+                          formatMoney(line.catalogCost, { decimals: 2 }),
+                        )
+                      : undefined
+                  }
+                  required
+                >
                   <Input
                     type="number"
                     min="0"

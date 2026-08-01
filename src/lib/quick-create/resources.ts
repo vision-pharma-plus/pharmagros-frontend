@@ -380,6 +380,10 @@ export const QUICK_CREATE_RESOURCES = {
         name: "selling_price",
         kind: "number",
         label: (t) => t.catalog.sellingPrice,
+        // Quick-create is the fastest way into the catalogue and the easiest
+        // place to enter a price without thinking about its basis, so it says
+        // so here too rather than relying on the label suffix alone.
+        hint: (t) => t.catalog.priceInclVatHint,
         required: true,
         min: 0,
         step: "0.0001",

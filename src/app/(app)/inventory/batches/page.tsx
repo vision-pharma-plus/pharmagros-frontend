@@ -202,7 +202,7 @@ export default function BatchesPage() {
               <option value="">{t.common.all}</option>
               {[30, 90, 180].map((days) => (
                 <option key={days} value={days}>
-                  {`${t.inventory.expiringSoon} — ${formatDays(days, locale)}`}
+                  {`${t.inventory.expiringSoon} : ${formatDays(days, locale)}`}
                 </option>
               ))}
             </Select>

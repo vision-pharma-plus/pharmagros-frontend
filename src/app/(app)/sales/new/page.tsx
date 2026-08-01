@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { EntityPicker } from "@/components/entity-picker";
+import { ReferenceSelect } from "@/components/reference-select";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -34,7 +35,7 @@ import type {
   Sale,
   Warehouse,
 } from "@/lib/api/types";
-import { computeLine, formatMoney, money } from "@/lib/format";
+import { computeLine, formatMoney, money, priceExclVat } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
 import { useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
@@ -71,6 +72,12 @@ export default function NewSalePage() {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
 
+  // Cash tender. Only sent for a cash sale — a credit sale is settled later,
+  // through a payment against its invoice.
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [amountTendered, setAmountTendered] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
@@ -99,9 +106,14 @@ export default function NewSalePage() {
 
     for (const line of lines) {
       if (!line.product || !line.quantity) continue;
+      // `unitPrice` is the VAT-inclusive counter price, both when prefilled
+      // from the catalogue and when the operator overrides it. computeLine
+      // works on the net base and adds VAT itself, so the price is extracted
+      // first — passing the inclusive figure straight in would tax it twice
+      // and show a preview total the server would then contradict.
       const computed = computeLine(
         line.quantity,
-        line.unitPrice || "0",
+        priceExclVat(line.unitPrice || "0", line.taxRate || "0"),
         line.discountPercent || "0",
         line.taxRate || "0",
       );
@@ -140,6 +152,21 @@ export default function NewSalePage() {
   );
 
   /**
+   * Change due on a cash tender.
+   *
+   * Null when nothing was entered — the tender then defaults to the exact
+   * total server-side, which is the common case at a counter that does not
+   * count a drawer. Negative means the customer has not handed over enough,
+   * which the server refuses, so it is caught here first.
+   */
+  const changeDue =
+    saleType === "CASH" && paymentMethod === "CASH" && amountTendered
+      ? money.subtract(amountTendered, totals.total)
+      : null;
+
+  const shortTender = changeDue !== null && money.compare(changeDue, "0") < 0;
+
+  /**
    * Why the submit button is disabled, in the user's words.
    *
    * A dead button with no explanation is the most common way an operator gets
@@ -150,6 +177,7 @@ export default function NewSalePage() {
     customer === null && t.blockers.selectCustomer,
     resolvedWarehouseId === "" && t.blockers.selectWarehouse,
     validLines.length === 0 && t.blockers.addOneLine,
+    shortTender && t.blockers.tenderBelowTotal,
   ].filter((entry): entry is string => typeof entry === "string");
 
   const canSubmit = blockers.length === 0;
@@ -183,7 +211,17 @@ export default function NewSalePage() {
       const confirmed = await api.post<Sale>(
         `/sales/sales/${sale.id}/confirm/`,
         {
-          generate_invoice: true,
+          // Omitted deliberately: the server picks the closing document from
+          // the sale type — a receipt for a cash sale, an invoice for a credit
+          // one. Forcing `true` here is what used to invoice every counter
+          // sale and land the operator on an invoice they never asked for.
+          ...(saleType === "CASH"
+            ? {
+                payment_method: paymentMethod,
+                ...(paymentReference ? { payment_reference: paymentReference } : {}),
+                ...(amountTendered ? { amount_tendered: amountTendered } : {}),
+              }
+            : {}),
           ...(creditOverrideReason
             ? { credit_override_reason: creditOverrideReason }
             : {}),
@@ -193,16 +231,16 @@ export default function NewSalePage() {
       setOverrideOpen(false);
       toast.success(
         t.toasts.saleConfirmed,
-        confirmed.invoice_number
-          ? `${confirmed.invoice_number} · ${t.toasts.saleConfirmedDetail}`
-          : undefined,
+        confirmed.receipt_number ?? confirmed.invoice_number ?? undefined,
       );
-      // Land on the invoice itself rather than a filtered list: the operator's
-      // next act is to print or collect payment on this specific document.
+      // Land on the document the customer is actually waiting for: the receipt
+      // for a cash sale, the invoice for a credit one.
       router.push(
-        confirmed.invoice_id
-          ? `/invoicing/invoices/${confirmed.invoice_id}`
-          : "/sales",
+        confirmed.receipt_id
+          ? `/sales/receipts/${confirmed.receipt_id}`
+          : confirmed.invoice_id
+            ? `/invoicing/invoices/${confirmed.invoice_id}`
+            : "/sales",
       );
     } catch (caught) {
       const apiError =
@@ -269,32 +307,42 @@ export default function NewSalePage() {
                 />
               </Field>
 
-              <Field label={t.sales.saleType} required>
+              {/* The transaction type decides which document closes the sale,
+                  so it says so plainly rather than leaving the operator to
+                  discover it at checkout. */}
+              <Field
+                label={t.sales.saleType}
+                required
+                hint={
+                  saleType === "CASH"
+                    ? t.sales.cashSaleHint
+                    : t.sales.creditSaleHint
+                }
+              >
                 <Select
                   value={saleType}
                   onChange={(event) =>
                     setSaleType(event.target.value as "CASH" | "CREDIT")
                   }
                 >
-                  <option value="CASH">{t.sales.cashSale}</option>
+                  <option value="CASH">{t.sales.cashSaleOption}</option>
                   {/* Credit sales require a distinct permission. */}
                   {can("sales.sell_on_credit") && (
-                    <option value="CREDIT">{t.sales.creditSale}</option>
+                    <option value="CREDIT">{t.sales.creditSaleOption}</option>
                   )}
                 </Select>
               </Field>
 
               <Field label={t.inventory.warehouse} required>
-                <Select
+                {/* ReferenceSelect rather than a plain Select so a warehouse
+                    that is not yet on file can be added here, the way the
+                    customer field already allows. This was the last warehouse
+                    picker in the app still without that affordance. */}
+                <ReferenceSelect
+                  resource="warehouse"
                   value={resolvedWarehouseId}
                   onChange={(event) => setWarehouseId(event.target.value)}
-                >
-                  {warehouseList.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.code} {warehouse.name}
-                    </option>
-                  ))}
-                </Select>
+                />
               </Field>
             </CardContent>
           </Card>
@@ -313,11 +361,13 @@ export default function NewSalePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {lines.map((line, index) => {
+                // Same extraction as the totals above: the entered price is
+                // VAT-inclusive, computeLine expects the net base.
                 const computed =
                   line.product && line.quantity
                     ? computeLine(
                         line.quantity,
-                        line.unitPrice || "0",
+                        priceExclVat(line.unitPrice || "0", line.taxRate || "0"),
                         line.discountPercent || "0",
                         line.taxRate || "0",
                       )
@@ -363,7 +413,7 @@ export default function NewSalePage() {
                     </div>
 
                     <div className="sm:col-span-3">
-                      <Field label={t.sales.unitPrice}>
+                      <Field label={t.sales.unitPriceInclVat}>
                         <Input
                           type="number"
                           min="0"
@@ -440,6 +490,60 @@ export default function NewSalePage() {
             </CardContent>
           </Card>
 
+          {/* Tender details, for a cash sale only. A credit sale is settled
+              later against its invoice, so asking how it was paid here would
+              be asking about money that has not arrived. */}
+          {saleType === "CASH" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t.sales.payment}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                <Field label={t.sales.paymentMethod} required>
+                  <Select
+                    value={paymentMethod}
+                    onChange={(event) => setPaymentMethod(event.target.value)}
+                  >
+                    <option value="CASH">{t.paymentMethods.CASH}</option>
+                    <option value="MOBILE_MONEY">
+                      {t.paymentMethods.MOBILE_MONEY}
+                    </option>
+                    <option value="CARD">{t.paymentMethods.CARD}</option>
+                    <option value="BANK_TRANSFER">
+                      {t.paymentMethods.BANK_TRANSFER}
+                    </option>
+                    <option value="CHEQUE">{t.paymentMethods.CHEQUE}</option>
+                    <option value="OTHER">{t.paymentMethods.OTHER}</option>
+                  </Select>
+                </Field>
+
+                {/* Cash is the only tender where change is counted back, so
+                    the field is offered only then. Every other method is
+                    charged for the exact amount. */}
+                {paymentMethod === "CASH" ? (
+                  <Field label={t.sales.amountTendered} hint={t.sales.tenderHint}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      inputMode="decimal"
+                      value={amountTendered}
+                      onChange={(event) => setAmountTendered(event.target.value)}
+                    />
+                  </Field>
+                ) : (
+                  <Field label={t.sales.paymentReference}>
+                    <Input
+                      value={paymentReference}
+                      onChange={(event) => setPaymentReference(event.target.value)}
+                      placeholder={t.sales.paymentReferencePlaceholder}
+                    />
+                  </Field>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="pt-6">
               <Field label={t.common.notes}>
@@ -483,6 +587,24 @@ export default function NewSalePage() {
                 <span>{t.common.total}</span>
                 <span className="tabular-nums">{formatMoney(totals.total)}</span>
               </div>
+
+              {/* States which document the sale will produce, before the
+                  operator commits — the question this screen was previously
+                  silent about. */}
+              <div className="rounded-md bg-muted p-3 text-xs">
+                <p className="font-medium">
+                  {saleType === "CASH"
+                    ? t.sales.willIssueReceipt
+                    : t.sales.willIssueInvoice}
+                </p>
+              </div>
+
+              {changeDue !== null && !shortTender && (
+                <div className="flex justify-between border-t border-border pt-3 text-sm font-semibold">
+                  <span>{t.sales.changeDue}</span>
+                  <span className="tabular-nums">{formatMoney(changeDue)}</span>
+                </div>
+              )}
 
               {customer && saleType === "CREDIT" && (
                 <div className="space-y-1 rounded-md bg-muted p-3 text-xs">
@@ -554,7 +676,7 @@ export default function NewSalePage() {
             {/* The override is recorded against the authorising user in the
                 audit trail, so the dialog states that plainly. */}
             <p className="mt-2 text-xs text-muted-foreground">
-              {t.sales.overrideReason} — {t.nav.auditLog}
+              {t.sales.overrideReason} &middot; {t.nav.auditLog}
             </p>
           </DialogBody>
           <DialogFooter>

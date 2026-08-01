@@ -45,6 +45,7 @@ import {
   formatDays,
   formatMoney,
   formatQuantity,
+  priceExclVat,
 } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
 import { useLocale, useTranslation } from "@/lib/i18n/provider";
@@ -97,6 +98,14 @@ export default function MedicineDetailPage() {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+
+  // Echo the derived net figure back while the user types, so a price entered
+  // here is visibly understood as VAT-inclusive. Exempt products have no VAT
+  // to strip, so the readout simply matches what was typed.
+  const priceVatRate = medicine.data?.is_vat_exempt
+    ? "0"
+    : (medicine.data?.vat_rate ?? "0");
+  const newPriceNet = newPrice ? priceExclVat(newPrice, priceVatRate) : "";
 
   const openPriceDialog = () => {
     if (!medicine.data) return;
@@ -425,7 +434,14 @@ export default function MedicineDetailPage() {
             {error && (
               <Alert variant="destructive">{translateError(error, t)}</Alert>
             )}
-            <Field label={`${t.catalog.unitCost} (BIF)`}>
+            {/* This dialog is a price-entry point in its own right, so it
+                repeats the basis rather than relying on the user having seen
+                it on the create form. */}
+            <Alert>{t.catalog.priceInclVatHint}</Alert>
+            <Field
+              label={`${t.catalog.unitCost} (BIF)`}
+              hint={t.catalog.unitCostExclVatHint}
+            >
               <Input
                 type="number"
                 min="0"
@@ -435,7 +451,14 @@ export default function MedicineDetailPage() {
                 onChange={(event) => setNewCost(event.target.value)}
               />
             </Field>
-            <Field label={`${t.catalog.sellingPrice} (BIF)`}>
+            <Field
+              label={`${t.catalog.sellingPrice} (BIF)`}
+              hint={
+                newPriceNet
+                  ? `${t.catalog.priceExclVat}: ${formatMoney(newPriceNet, { decimals: 2 })}`
+                  : undefined
+              }
+            >
               <Input
                 type="number"
                 min="0"

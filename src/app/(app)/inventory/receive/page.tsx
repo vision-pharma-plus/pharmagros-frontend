@@ -205,21 +205,16 @@ export default function ReceiveStockPage() {
   /**
    * Select a product and pre-fill its cost from the catalogue.
    *
-   * The list endpoint does not carry `unit_cost`, so the detail record is
-   * fetched to seed the field. It is only a starting value — the supplier
+   * The catalogue reference cost is only a starting value — the supplier
    * invoice is what actually governs, and the clerk can overwrite it. An
    * untouched cost defaults to the catalogue's, which beats defaulting to
    * zero and silently valuing the delivery at nothing.
    */
   const selectProduct = (line: ReceiptLine, product: MedicineListItem | null) => {
-    updateLine(line.key, { product });
-    if (!product || line.unitCost) return;
-    api
-      .get<Medicine>(`/catalog/medicines/${product.id}/`)
-      .then((detail) => updateLine(line.key, { unitCost: detail.unit_cost }))
-      .catch(() => {
-        /* Cost stays blank and the clerk types it; not worth blocking on. */
-      });
+    updateLine(line.key, {
+      product,
+      ...(product && !line.unitCost ? { unitCost: product.unit_cost } : {}),
+    });
   };
 
   /**
@@ -470,6 +465,7 @@ export default function ReceiveStockPage() {
             >
               <ReferenceSelect
                 resource="warehouse"
+                emptyLabel={t.blockers.selectWarehouse}
                 value={warehouseId}
                 onChange={(event) => setWarehouseId(event.target.value)}
               />

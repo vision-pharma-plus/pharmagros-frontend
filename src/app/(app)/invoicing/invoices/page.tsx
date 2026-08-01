@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Badge, Select, statusVariant } from "@/components/ui/primitives";
+import { Badge, Select, fiscalVariant, statusVariant } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, saveBlob } from "@/lib/api/client";
 import type { InvoiceListItem } from "@/lib/api/types";
@@ -32,13 +32,17 @@ export default function InvoicesPage() {
     overdue: filters.filter === "overdue" ? true : undefined,
     unpaid: filters.filter === "unpaid" ? true : undefined,
     status: filters.filter === "draft" ? "DRAFT" : undefined,
+    // The undeclared filter is what someone chasing a compliance backlog
+    // actually wants: documents the OBR has refused and stopped retrying.
+    fiscal_status: filters.filter === "obr_rejected" ? "REJECTED" : undefined,
   });
 
   const downloadPdf = async (invoice: InvoiceListItem) => {
     setDownloading(invoice.id);
     try {
       // The PDF renders in the viewer's language; the backend also records
-      // the print and stamps any copy after the first as a duplicate.
+      // the print, so reprints stay auditable even though every copy of the
+      // document looks the same.
       const blob = await api.download(
         `/invoicing/invoices/${invoice.id}/pdf/`,
         { language: locale },
@@ -122,9 +126,19 @@ export default function InvoicesPage() {
       key: "status",
       header: t.common.status,
       render: (row) => (
-        <Badge variant={statusVariant(row.status)}>
-          {t.status[row.status as keyof typeof t.status] ?? row.status}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={statusVariant(row.status)}>
+            {t.status[row.status as keyof typeof t.status] ?? row.status}
+          </Badge>
+          {/* Only a rejection is surfaced in the list. Queued and declared
+              are the normal path and would double the badges on every row
+              for no decision the reader has to make. */}
+          {row.fiscal_status === "REJECTED" && (
+            <Badge variant={fiscalVariant(row.fiscal_status)}>
+              {t.invoicing.fiscal.REJECTED}
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
@@ -179,6 +193,7 @@ export default function InvoicesPage() {
             <option value="unpaid">{t.dashboard.outstandingInvoices}</option>
             <option value="overdue">{t.invoicing.overdue}</option>
             <option value="draft">{t.status.DRAFT}</option>
+            <option value="obr_rejected">{t.invoicing.fiscal.REJECTED}</option>
           </Select>
         }
       />

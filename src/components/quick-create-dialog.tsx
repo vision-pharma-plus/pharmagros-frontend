@@ -413,7 +413,7 @@ export function QuickCreateDialog({
           {duplicate && (
             <Alert variant="warning" title={t.quickCreate.duplicateTitle}>
               <p className="mb-2">
-                {t.quickCreate.duplicateBody} —{" "}
+                {t.quickCreate.duplicateBody} &middot;{" "}
                 <span className="font-medium">
                   {resource.getLabel(duplicate)}
                 </span>

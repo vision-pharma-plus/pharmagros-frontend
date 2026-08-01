@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PieChart,
+  ReceiptText,
   Ruler,
   ShieldCheck,
   ShoppingCart,
@@ -31,7 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { BRAND_NAME, Logo } from "@/components/logo";
@@ -153,6 +154,12 @@ const NAV: NavSection[] = [
         href: "/sales",
         labelKey: "salesList",
         icon: ShoppingCart,
+        permissions: ["sales.view_sale"],
+      },
+      {
+        href: "/sales/receipts",
+        labelKey: "receipts",
+        icon: ReceiptText,
         permissions: ["sales.view_sale"],
       },
       {
@@ -353,21 +360,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   /**
+   * The single nav item the current route belongs to.
+   *
+   * Several hrefs can prefix-match one route (`/sales/returns` matches both
+   * `/sales` and itself), so the longest match wins. Resolving one winner here
+   * keeps the sidebar highlight and the mobile title in agreement, and stops
+   * parent entries lighting up alongside their children.
+   */
+  const activeItem = useMemo(
+    () =>
+      NAV.flatMap((section) => section.items)
+        .filter(
+          (item) =>
+            pathname === item.href || pathname.startsWith(`${item.href}/`),
+        )
+        .sort((a, b) => b.href.length - a.href.length)[0],
+    [pathname],
+  );
+
+  /**
    * Title for the mobile header.
    *
-   * Resolved from the nav model by longest matching prefix so that detail and
-   * sub-routes (`/sales/new`, `/invoicing/invoices/:id`) inherit their
-   * section's label rather than falling back to the app name.
+   * Detail and sub-routes (`/sales/new`, `/invoicing/invoices/:id`) inherit
+   * their section's label rather than falling back to the app name.
    */
   const currentTitle = (() => {
-    const match = NAV.flatMap((section) => section.items)
-      .filter(
-        (item) =>
-          pathname === item.href || pathname.startsWith(`${item.href}/`),
-      )
-      .sort((a, b) => b.href.length - a.href.length)[0];
-
-    if (match) return t.nav[match.labelKey];
+    if (activeItem) return t.nav[activeItem.labelKey];
     if (pathname.startsWith("/notifications")) return t.nav.notifications;
     if (pathname.startsWith("/profile")) return t.nav.profile;
     return t.common.appName;
@@ -495,8 +513,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
-                  const active =
-                    pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  const active = item.href === activeItem?.href;
                   const Icon = item.icon;
                   return (
                     <li key={item.href}>

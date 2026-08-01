@@ -380,7 +380,7 @@ export default function PaymentsPage() {
               </Alert>
             )}
             <Alert variant="warning">
-              {reversing?.reference} — {formatMoney(reversing?.amount ?? "0")}
+              {reversing?.reference} &middot; {formatMoney(reversing?.amount ?? "0")}
             </Alert>
             <Field label={t.invoicing.reversalReason} required>
               <Textarea

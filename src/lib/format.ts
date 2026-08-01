@@ -202,12 +202,48 @@ export const money = {
 };
 
 /**
+ * Extract the net-of-VAT price from a VAT-inclusive one.
+ *
+ * Mirrors `apps.core.money.price_ex_tax`. Catalogue and counter prices are
+ * entered VAT-inclusive — the figure the customer actually pays — while every
+ * stored line amount is net of VAT, so this is the one inversion and the two
+ * implementations must stay in step.
+ *
+ * A zero rate returns the price unchanged rather than dividing by one, keeping
+ * exempt and zero-rated products exact.
+ */
+export function priceExclVat(priceInclVat: string, vatRate = "0"): string {
+  const rate = new Decimal(vatRate || 0);
+  const price = new Decimal(priceInclVat || 0);
+  if (rate.isZero()) {
+    return price.toFixed(4);
+  }
+  return price.dividedBy(rate.dividedBy(100).plus(1)).toFixed(4);
+}
+
+/**
+ * Add VAT back onto a net price. The inverse of `priceExclVat`.
+ */
+export function priceInclVat(priceExclVatValue: string, vatRate = "0"): string {
+  const rate = new Decimal(vatRate || 0);
+  const price = new Decimal(priceExclVatValue || 0);
+  if (rate.isZero()) {
+    return price.toFixed(4);
+  }
+  return price.times(rate.dividedBy(100).plus(1)).toFixed(4);
+}
+
+/**
  * Compute a sale/invoice line client-side for live preview.
  *
  * Mirrors `apps.core.money.compute_line` exactly — discount applies to the
  * gross line, tax to the discounted net. The server remains authoritative;
  * this exists so the operator sees the total update as they type rather than
  * after a round trip.
+ *
+ * `unitPrice` here is NET of VAT, matching what the server stores. Callers
+ * holding a VAT-inclusive figure — the sales screen, where the operator types
+ * the counter price — must put it through `priceExclVat` first.
  */
 export function computeLine(
   quantity: string,

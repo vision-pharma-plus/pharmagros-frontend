@@ -318,6 +318,31 @@ export function statusVariant(
   }
 }
 
+/**
+ * Badge colour for an invoice's OBR declaration status.
+ *
+ * Separate from `statusVariant` because three of the values collide with
+ * commercial statuses that carry the opposite meaning: a fiscal CANCELLED is
+ * a *successfully filed* withdrawal, not a failure, and a fiscal PENDING is
+ * the ordinary happy path rather than something awaiting a human.
+ */
+export function fiscalVariant(
+  status: string,
+): VariantProps<typeof badgeVariants>["variant"] {
+  switch (status) {
+    case "DECLARED":
+    case "CANCELLED":
+      return "success";
+    case "PENDING":
+      // Informational, not a warning: queued is where every invoice starts.
+      return "secondary";
+    case "REJECTED":
+      return "destructive";
+    default:
+      return "default";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Table
 // ---------------------------------------------------------------------------

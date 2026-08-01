@@ -5,9 +5,17 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Vision Pharma plus - Gestion",
+  // `template` puts the company name on every tab: a page that sets its own
+  // title renders as "Factures | Vision Pharma plus", while anything that
+  // sets none falls back to `default`. Several of these tabs are open at
+  // once alongside other systems, so the pharmacy has to be identifiable
+  // from the tab strip alone.
+  title: {
+    default: "Vision Pharma plus",
+    template: "%s | Vision Pharma plus",
+  },
   description:
-    "Vision Pharma plus - système de gestion pour grossiste pharmaceutique, Burundi",
+    "Vision Pharma plus, grossiste pharmaceutique à Bujumbura, Burundi",
   // The mark in public/ is served as both the tab icon and the iOS home
   // screen icon; it is a square logotype, so it reads at either size.
   icons: {
@@ -35,7 +43,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      {/* Browser extensions (Grammarly and similar) inject attributes onto
+          body before React hydrates, which otherwise trips a mismatch warning.
+          suppressHydrationWarning only covers one level, so it is needed here
+          in addition to the html element above. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

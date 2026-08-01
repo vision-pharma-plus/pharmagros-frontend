@@ -4,6 +4,7 @@ import { ArrowLeft, KeyRound, Pencil, ShieldOff, UserCheck } from "lucide-react"
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PasswordChecklist } from "@/components/password-checklist";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,6 +42,7 @@ import type { User, UserSession } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
 import { useTranslation } from "@/lib/i18n/provider";
+import { isPasswordValid } from "@/lib/password-policy";
 import { useAuth } from "@/lib/stores/auth";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -350,6 +352,7 @@ export default function UserDetailPage() {
                     onChange={(event) => setPassword(event.target.value)}
                   />
                 </Field>
+                <PasswordChecklist value={password} />
               </>
             )}
 
@@ -370,7 +373,7 @@ export default function UserDetailPage() {
             <Button
               onClick={submit}
               loading={saving}
-              disabled={mode === "reset" && password.trim().length === 0}
+              disabled={mode === "reset" && !isPasswordValid(password)}
             >
               {t.common.confirm}
             </Button>

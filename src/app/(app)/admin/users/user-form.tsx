@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { PasswordChecklist } from "@/components/password-checklist";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -23,13 +24,8 @@ import { ApiError, api, type Paginated } from "@/lib/api/client";
 import type { Role, User } from "@/lib/api/types";
 import { scrollToFirstError, translateError, useQuery } from "@/lib/hooks";
 import { localizedName, useLocale } from "@/lib/i18n/provider";
-import {
-  PASSWORD_RULES,
-  evaluatePassword,
-  isPasswordValid,
-} from "@/lib/password-policy";
+import { isPasswordValid } from "@/lib/password-policy";
 import { isValidPhone } from "@/lib/phone";
-import { cn } from "@/lib/utils";
 
 // Length limits mirror the model fields in apps/accounts/models.py; exceeding
 // them is a 400 from the server, so the form stops it first.
@@ -99,7 +95,6 @@ export function UserForm({ user }: { user?: User }) {
   // Drives the live rule checklist. Only meaningful on create, where the
   // password field is shown at all.
   const passwordValue = watch("password") ?? "";
-  const ruleState = evaluatePassword(passwordValue);
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
@@ -290,43 +285,7 @@ export function UserForm({ user }: { user?: User }) {
                   />
                 </Field>
 
-                {/* The policy is only relevant once a password is being typed;
-                    showing it against a blank field would contradict the
-                    "leave blank to generate" hint directly above. */}
-                {passwordValue.length > 0 && (
-                  <div className="rounded-md border border-border p-3">
-                    <p className="mb-1.5 text-sm font-medium">
-                      {t.passwordPolicy.heading}
-                    </p>
-                    {/* Polite live region: rules flip as the user types, and
-                        each change should be announced without interrupting. */}
-                    <ul className="space-y-1" aria-live="polite">
-                      {PASSWORD_RULES.map((rule) => {
-                        const met = ruleState[rule.id];
-                        return (
-                          <li
-                            key={rule.id}
-                            className={cn(
-                              "flex items-center gap-2 text-sm",
-                              met ? "text-success" : "text-muted-foreground",
-                            )}
-                          >
-                            {/* Decorative: colour and glyph both restate the
-                                state that the sr-only text carries in words,
-                                so colour is never the only signal. */}
-                            <span aria-hidden="true" className="w-3 text-center">
-                              {met ? "✓" : "•"}
-                            </span>
-                            <span>{t.passwordPolicy[rule.id]}</span>
-                            <span className="sr-only">
-                              {met ? t.passwordPolicy.ruleMet : t.passwordPolicy.ruleUnmet}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
+                <PasswordChecklist value={passwordValue} />
               </div>
             )}
 

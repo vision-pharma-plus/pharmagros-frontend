@@ -22,6 +22,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { Medicine } from "@/lib/api/types";
+import { formatMoney, priceExclVat } from "@/lib/format";
 import { scrollToFirstError, translateError } from "@/lib/hooks";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { useTranslation } from "@/lib/i18n/provider";
@@ -142,12 +143,29 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
   const isExempt = watch("is_vat_exempt");
   const unitCost = watch("unit_cost");
   const sellingPrice = watch("selling_price");
+  const wholesalePrice = watch("wholesale_price");
+  const vatRate = watch("vat_rate");
+
+  // Prices are entered VAT-inclusive, so the effective rate drives both the
+  // net-of-VAT preview and the below-cost check below.
+  const effectiveVatRate = isExempt ? "0" : vatRate || "0";
+  const sellingPriceNet = sellingPrice
+    ? priceExclVat(sellingPrice, effectiveVatRate)
+    : "";
+  const wholesalePriceNet = wholesalePrice
+    ? priceExclVat(wholesalePrice, effectiveVatRate)
+    : "";
 
   // Selling below cost is legitimate for clearing short-dated stock, so this
   // is a warning rather than a validation failure — the backend records it in
   // the audit note either way.
+  //
+  // The comparison is made net of VAT: unit_cost is a purchase cost and
+  // carries no VAT, so testing it against the VAT-inclusive selling price
+  // would hide genuine below-cost pricing on anything with a margin thinner
+  // than the tax rate.
   const belowCost =
-    unitCost && sellingPrice && Number(sellingPrice) < Number(unitCost);
+    unitCost && sellingPriceNet && Number(sellingPriceNet) < Number(unitCost);
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
@@ -321,7 +339,17 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
             <CardTitle>{t.sections.pricingAndTax}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Stated once, up front and unmissable. Getting this wrong prices
+                an entire catalogue 18% off, and the label suffix alone is too
+                easy to skim past when entering products in bulk. */}
+            <Alert>{t.catalog.priceInclVatHint}</Alert>
+
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* No hint here: the "reference" in the label carries the
+                  distinction, and the purchase order screen — where the two
+                  costs could actually be confused — shows this value inline
+                  beside the supplier's price. Explaining it twice made the
+                  most-used field on the form the wordiest. */}
               <Field label={`${t.catalog.unitCost} (BIF)`} required>
                 <Input
                   type="number"
@@ -331,7 +359,18 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
                   {...register("unit_cost")}
                 />
               </Field>
-              <Field label={`${t.catalog.sellingPrice} (BIF)`} required>
+              <Field
+                label={`${t.catalog.sellingPrice} (BIF)`}
+                // Echoing the derived net figure back is the real safeguard:
+                // whoever types 180 sees at once that the system read it as a
+                // VAT-inclusive price, without needing to trust the label.
+                hint={
+                  sellingPriceNet
+                    ? `${t.catalog.priceExclVat}: ${formatMoney(sellingPriceNet, { decimals: 2 })}`
+                    : undefined
+                }
+                required
+              >
                 <Input
                   type="number"
                   min="0"
@@ -348,7 +387,14 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
               </Alert>
             )}
 
-            <Field label={`${t.catalog.wholesalePrice} (BIF)`}>
+            <Field
+              label={`${t.catalog.wholesalePrice} (BIF)`}
+              hint={
+                wholesalePriceNet
+                  ? `${t.catalog.priceExclVat}: ${formatMoney(wholesalePriceNet, { decimals: 2 })}`
+                  : undefined
+              }
+            >
               <Input
                 type="number"
                 min="0"
@@ -416,8 +462,8 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
             </div>
 
             <Field
-              label={`${t.dashboard.expiringSoon} (j)`}
-              hint={t.catalog.storageCondition}
+              label={t.catalog.expiryAlertDays}
+              hint={t.catalog.expiryAlertDaysHint}
             >
               <Input
                 type="number"

@@ -163,7 +163,7 @@ export default function ExpiryReportPage() {
             >
               {HORIZONS.map((days) => (
                 <option key={days} value={days}>
-                  {`${t.inventory.expiringSoon} — ${formatDays(days, locale)}`}
+                  {`${t.inventory.expiringSoon} : ${formatDays(days, locale)}`}
                 </option>
               ))}
             </Select>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, Mail } from "lucide-react";
+import { ArrowLeft, Download, FileMinus, Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -30,6 +30,7 @@ import {
   TR,
   Table,
   Textarea,
+  fiscalVariant,
   statusVariant,
 } from "@/components/ui/primitives";
 import {
@@ -45,6 +46,8 @@ import { translateError, useQuery } from "@/lib/hooks";
 import { useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
+import { CreditNoteDialog } from "./credit-note-dialog";
+
 export default function InvoiceDetailPage() {
   const t = useTranslation();
   const { locale } = useLocale();
@@ -55,8 +58,9 @@ export default function InvoiceDetailPage() {
   const invoice = useQuery<Invoice>(`/invoicing/invoices/${params.id}/`);
 
   const [downloading, setDownloading] = useState(false);
-  const [emailing, setEmailing] = useState(false);
+  const [declaring, setDeclaring] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [creditOpen, setCreditOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("CASH");
   const [bankReference, setBankReference] = useState("");
@@ -88,18 +92,21 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  const emailInvoice = async () => {
-    setEmailing(true);
+  const declareToObr = async () => {
+    setDeclaring(true);
     try {
-      await api.post(`/invoicing/invoices/${params.id}/email/`);
-      toast.success(t.toasts.invoiceEmailed, invoice.data?.customer_name);
+      await api.post(`/invoicing/invoices/${params.id}/declare/`);
+      toast.success(t.toasts.invoiceDeclared, invoice.data?.invoice_number);
+      invoice.refetch();
     } catch (caught) {
+      // The OBR's own reason comes back in the error envelope, and it is the
+      // only thing that tells the operator what to fix.
       toast.error(
-        t.toasts.invoiceEmailFailed,
+        t.toasts.invoiceDeclareFailed,
         caught instanceof ApiError ? translateError(caught, t) : undefined,
       );
     } finally {
-      setEmailing(false);
+      setDeclaring(false);
     }
   };
 
@@ -152,6 +159,16 @@ export default function InvoiceDetailPage() {
   const item = invoice.data;
   const hasBalance = Number(item.balance_due) > 0;
 
+  // A credit note corrects a document that has already been issued, so a
+  // draft has nothing to correct (edit it instead) and a cancelled invoice no
+  // longer stands. Crediting a credit note is not a thing either — the server
+  // refuses it, and the button should not invite the attempt.
+  const canIssueCreditNote =
+    can("invoicing.issue_credit_note") &&
+    !item.is_editable &&
+    item.status !== "CANCELLED" &&
+    item.invoice_type !== "CREDIT_NOTE";
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -176,6 +193,14 @@ export default function InvoiceDetailPage() {
                   {item.days_overdue} {t.invoicing.daysOverdue}
                 </Badge>
               )}
+              {/* Shown only when the document is actually in scope for
+                  declaration; a NOT_REQUIRED badge on every proforma would
+                  be noise. */}
+              {item.fiscal_status !== "NOT_REQUIRED" && (
+                <Badge variant={fiscalVariant(item.fiscal_status)}>
+                  {t.invoicing.fiscal[item.fiscal_status]}
+                </Badge>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
               {item.customer_name}
@@ -195,14 +220,24 @@ export default function InvoiceDetailPage() {
               {t.invoicing.downloadPdf}
             </Button>
           )}
-          {can("invoicing.email_invoice") && (
-            <Button
-              variant="outline"
-              loading={emailing}
-              onClick={() => void emailInvoice()}
-            >
-              <Mail className="h-4 w-4" />
-              {t.invoicing.emailInvoice}
+          {/* Only offered once automatic retries have given up. While the
+              invoice is merely queued, the sweep will handle it and a manual
+              button would invite pointless clicking. */}
+          {can("invoicing.declare_invoice") &&
+            item.fiscal_status === "REJECTED" && (
+              <Button
+                variant="outline"
+                loading={declaring}
+                onClick={() => void declareToObr()}
+              >
+                <Send className="h-4 w-4" />
+                {t.invoicing.declareToObr}
+              </Button>
+            )}
+          {canIssueCreditNote && (
+            <Button variant="outline" onClick={() => setCreditOpen(true)}>
+              <FileMinus className="h-4 w-4" />
+              {t.invoicing.issueCreditNote}
             </Button>
           )}
           {can("invoicing.record_payment") && hasBalance && (
@@ -219,8 +254,86 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
+      {/* On a credit note, the invoice it corrects is the first thing anyone
+          opening it needs, so it is a link rather than a bare number. */}
+      {item.original_invoice && (
+        <Alert>
+          {t.invoicing.correctsInvoice}{" "}
+          <button
+            type="button"
+            className="font-medium underline underline-offset-2"
+            onClick={() =>
+              router.push(`/invoicing/invoices/${item.original_invoice}`)
+            }
+          >
+            {item.original_invoice_number}
+          </button>
+          {item.credit_reason_code
+            ? ` · ${t.invoicing.creditReasons[item.credit_reason_code]}`
+            : ""}
+        </Alert>
+      )}
+
       {!item.is_editable && (
         <Alert variant="warning">{t.invoicing.postedWarning}</Alert>
+      )}
+
+      {/* A rejection is the one fiscal state that needs a human, so it is
+          raised to an alert with the OBR's own reason attached. */}
+      {item.fiscal_status === "REJECTED" && (
+        <Alert variant="destructive" title={t.invoicing.fiscal.REJECTED}>
+          <p>{t.invoicing.fiscalRejectedNote}</p>
+          {item.last_declaration_error && (
+            <p className="mt-2 font-mono text-xs break-words">
+              {item.last_declaration_error}
+            </p>
+          )}
+        </Alert>
+      )}
+
+      {item.fiscal_status !== "NOT_REQUIRED" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.invoicing.fiscalStatus}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 p-5 pt-0 text-sm">
+            <p className="text-muted-foreground">
+              {item.fiscal_status === "PENDING" && t.invoicing.fiscalPendingNote}
+              {item.fiscal_status === "DECLARED" && t.invoicing.fiscalDeclaredNote}
+            </p>
+
+            {/* The signature exists from the moment of posting; the OBR's own
+                identifiers only after it has accepted the document. */}
+            {item.fiscal_signature && (
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">
+                  {t.invoicing.fiscalSignature}
+                </p>
+                <p className="font-mono text-xs break-all">
+                  {item.fiscal_signature}
+                </p>
+              </div>
+            )}
+            {item.obr_registered_number && (
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">
+                  {t.invoicing.obrRegisteredNumber}
+                </p>
+                <p className="font-mono text-xs break-all">
+                  {item.obr_registered_number}
+                </p>
+              </div>
+            )}
+            {item.declared_at && (
+              <div>
+                <p className="text-xs uppercase text-muted-foreground">
+                  {t.invoicing.declaredAt}
+                </p>
+                <p className="tabular-nums">{formatDate(item.declared_at)}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -365,10 +478,74 @@ export default function InvoiceDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Credit notes already raised against this invoice. Shown so the
+          balance reads correctly — an invoice settled by a credit rather than
+          by cash is otherwise indistinguishable from one that was paid. */}
+      {item.corrections.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.invoicing.creditNotesIssued}</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <THead>
+                <TR>
+                  <TH>{t.invoicing.invoiceNumber}</TH>
+                  <TH>{t.invoicing.invoiceDate}</TH>
+                  <TH>{t.invoicing.creditNoteReason}</TH>
+                  <TH numeric>{t.invoicing.totalAmount}</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {item.corrections.map((note) => (
+                  <TR
+                    key={note.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/invoicing/invoices/${note.id}`)}
+                  >
+                    <TD>
+                      <span className="font-medium">{note.invoice_number}</span>
+                    </TD>
+                    <TD>{formatDate(note.invoice_date)}</TD>
+                    <TD>
+                      <p>
+                        {note.credit_reason_code
+                          ? t.invoicing.creditReasons[note.credit_reason_code]
+                          : "—"}
+                      </p>
+                      {note.notes && (
+                        <p className="text-xs text-muted-foreground">
+                          {note.notes}
+                        </p>
+                      )}
+                    </TD>
+                    <TD numeric>− {formatMoney(note.total_amount)}</TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {item.print_count > 0 && (
         <p className="text-xs text-muted-foreground">
           {t.common.print}: {item.print_count}
         </p>
+      )}
+
+      {canIssueCreditNote && (
+        <CreditNoteDialog
+          invoice={item}
+          open={creditOpen}
+          onOpenChange={setCreditOpen}
+          // The original's balance and status change as the credit is
+          // applied, so the page it was issued from has to be refetched.
+          onIssued={(creditNoteId) => {
+            invoice.refetch();
+            router.push(`/invoicing/invoices/${creditNoteId}`);
+          }}
+        />
       )}
 
       <Dialog open={payOpen} onOpenChange={setPayOpen}>

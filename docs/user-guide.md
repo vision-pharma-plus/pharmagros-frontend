@@ -121,6 +121,10 @@ These are in alphabetical order. If a word on screen confuses you, look here fir
 
 **Landed cost.** What a product really cost you, including not just the supplier's price but also freight, customs duty, and other charges spread across the delivery. This is the honest cost used for valuing your stock.
 
+**Reference cost.** The typical purchase price recorded against a product in the catalogue. It is used to work out the margin shown on the product page, to warn you when you price below cost, and to pre-fill the cost when you raise an order or receive a delivery. It is a guide, not a valuation: your stock is worth what its batches cost, not what this field says. Contrast **supplier unit cost** and **landed cost**.
+
+**Supplier unit cost.** The price a particular supplier charges per unit on a particular purchase order. This is a real price on a real document, unlike the catalogue's reference cost, and it is what the delivered batch is valued at before freight and duty are added.
+
 **Ledger (stock ledger).** The permanent, running list of every single stock movement ever made. Like a bank statement for stock. Nothing is ever deleted from it; mistakes are corrected by adding a new correcting entry.
 
 **Movement.** One entry in the stock ledger: a receipt, a sale, a transfer, an adjustment, and so on. Each has a plus or minus quantity.
@@ -288,24 +292,37 @@ The BIF has no small change in circulation, so every printed invoice shows whole
 
 So the system calculates with four decimal places internally and rounds once, at the point where the document is produced. This is why the total on an invoice always exactly equals the sum of its lines. An auditor checks this, and it will always add up.
 
+### VAT is already inside the price you enter
+
+Catalogue prices are **VAT-inclusive**. Before a line is calculated, the system separates the tax that is already in the price:
+
+- **Tax-exclusive base** = price ÷ (1 + VAT rate)
+- A product at 1,180 BIF with 18% VAT has a base of 1,000 and carries 180 of VAT.
+- A VAT-exempt product has nothing to separate, so its base equals its price.
+
+This happens once, at the moment a catalogue price becomes a sale line. Everything after that — discounts, totals, the tax summary, and what is filed with the OBR — works on the tax-exclusive base, which is what the tax authority requires.
+
 ### Discount comes first, then VAT
 
 The order is fixed and cannot be changed:
 
-1. Start with quantity multiplied by unit price. This is the **gross line**.
+1. Start with quantity multiplied by the tax-exclusive unit price. This is the **gross line**.
 2. Subtract the discount percentage. This gives the **net line**.
 3. Apply VAT to the net line.
 4. The result is the **line total**.
 
-Worked example: 100 units at 1,000 BIF, with a 10% discount and 18% VAT.
+Worked example: 100 units of a product priced at **1,180 BIF including VAT**, with a 10% discount and 18% VAT.
 
 | Step | Calculation | Result |
 |---|---|---|
+| Tax-exclusive price | 1,180 ÷ 1.18 | 1,000 |
 | Gross | 100 × 1,000 | 100,000 |
 | Discount | 10% of 100,000 | −10,000 |
 | Net | | 90,000 |
 | VAT | 18% of 90,000 | +16,200 |
 | **Line total** | | **106,200** |
+
+Without the discount, the same 100 units would total exactly 118,000 — the shelf price times the quantity, which is the point of pricing this way.
 
 Applying VAT before the discount would charge the customer VAT on money they never paid. That is a tax compliance error, not a matter of preference, which is why the order is not adjustable.
 
@@ -623,15 +640,23 @@ The **product code** is not on this form. The system allocates it automatically 
 
 **Pricing and VAT**
 
+> **Selling prices are entered VAT-inclusive (TTC).** Type the price the customer actually pays at the counter — the price on the shelf edge. Do not subtract VAT yourself; the system works out the tax-exclusive base and shows it under the field as you type.
+
 | Field | Required | Meaning |
 |---|---|---|
-| Unit cost (BIF) | Yes | What you pay for one unit. |
-| Selling price (BIF) | Yes | Your standard price. |
-| Wholesale price (BIF) | No | An alternative price for large customers. |
+| Reference cost (BIF) | Yes | What you normally pay for one unit, **excluding VAT**. |
+| Selling price (BIF) | Yes | Your standard price, **VAT included**. |
+| Wholesale price (BIF) | No | An alternative price for large customers, **VAT included**. |
 | VAT rate % | Yes | The tax rate for this product. |
 | VAT exempt | Tick box | Tick if the product carries no VAT. |
 
-If you set a selling price below the unit cost, the system **warns you but allows it**. This is deliberate: selling below cost is a legitimate business decision when clearing short-dated stock, so the system flags it rather than blocking it.
+Reference cost is the one price on this form that excludes VAT, because it is what your supplier charges you before tax. The two selling prices include it.
+
+> **Reference cost is not what your stock is worth.** It is a typical figure used for three things: working out the margin shown on the product page, warning you if you price below cost, and pre-filling the cost when you raise a purchase order or receive a delivery. What your stock is actually valued at is the cost of each batch, taken from the delivery it arrived on. Two batches of the same product bought at different prices keep their own costs. Changing the reference cost here never re-values stock you already hold.
+
+Worked example: a product sold at **180 BIF** with 18% VAT. You type 180. The system stores a tax-exclusive base of 152.5424 and records 27.4576 of VAT, and the customer is billed exactly 180. A VAT-exempt product has no tax to separate, so what you type is what is stored.
+
+If you set a selling price below the reference cost, the system **warns you but allows it**. This is deliberate: selling below cost is a legitimate business decision when clearing short-dated stock, so the system flags it rather than blocking it. The comparison is made after VAT is removed, so that a thin margin is not hidden by the tax.
 
 **Stock settings**
 
@@ -762,7 +787,7 @@ It matters because that stock was counted off your own shelves, not bought from 
 | **Batch number** | Yes | **Copy this exactly from the carton.** This is the traceability link. |
 | **Expiry date** | Yes | From the carton. |
 | **Quantity** | Yes | What actually arrived. |
-| Unit cost | No | Pre-filled from the catalogue or the order. Change it if the supplier invoiced differently. |
+| Unit cost | No | Pre-filled from the order, or from the catalogue's reference cost in direct mode. Change it if the supplier invoiced differently — what you leave here is what this batch is valued at. |
 | Manufacturing date | No | If shown on the carton. |
 | Warehouse | No | Leave as *Same as above* unless this line goes elsewhere. |
 
@@ -1003,7 +1028,7 @@ One block per product. **Add line** adds another; the bin icon removes one (you 
 |---|---|
 | **Name** | Search and select the product. Only active products appear. |
 | **Quantity** | How many units. |
-| **Unit price** | Pre-filled from the catalogue. You can change it. |
+| **Unit price (VAT incl.)** | Pre-filled from the catalogue. You can change it. Enter the price the customer pays, VAT included — the same basis as the catalogue. |
 | **Discount %** | **Greyed out unless you have the apply discount permission.** If greyed, it says "You do not have permission to apply a discount." |
 | **Line total** | Calculated live as you type. |
 
@@ -1242,9 +1267,13 @@ One block per product, with **Add a line** underneath.
 |---|---|---|
 | Medicine | Yes | Search by name or code. If it is not in the catalogue, choose **＋ New medicine** to create it here without losing the order. |
 | Quantity ordered | Yes | |
-| Unit cost | Yes | What you expect to pay per unit. |
+| Supplier unit cost | Yes | What this supplier is charging you per unit on this order. |
 | Discount % | No | Any agreed discount on this line. |
 | Minimum acceptable expiry | No | See below. |
+
+**Supplier unit cost is pre-filled, and you are expected to change it.** When you pick a product, the system fills this in from the catalogue's reference cost and shows that reference underneath the field. It is a starting point, not the price. Type what the supplier actually quoted — that figure is what the order is placed at, what the supplier is paid, and what the delivered batch is valued at. The catalogue reference is left alone.
+
+**A line cannot be ordered at zero.** If the cost is blank or zero, the order will not save and the reason appears at the bottom of the form. A zero-cost line would produce goods that appear to have cost nothing, which understates what your stock is worth for as long as that batch is held.
 
 **Minimum acceptable expiry is worth setting.** It is the earliest expiry date you are willing to accept for this product. When the delivery arrives, anything shorter-dated is **refused at receipt**, on screen, while the driver is still there. Without it, short-dated stock is accepted quietly and becomes a write-off later.
 
@@ -1326,7 +1355,7 @@ This is a deliberate financial control. One person alone must never be able to b
 
 **Why landed cost is separated.** Landed cost is what reaches the batch cost, and therefore what your stock is really valued at and what your margin is really calculated from. A product bought at 1,000 BIF with 200 BIF of freight and duty per unit costs you 1,200. Selling at 1,100 looks like profit against the purchase price and is actually a loss. Landed cost is why the system knows the difference. The freight and duty are spread across the delivery in proportion to value.
 
-**Line items table:** product, quantity ordered, quantity received, quantity outstanding, unit cost, and total. Outstanding is shown in bold when there is still something to come.
+**Line items table:** product, quantity ordered, quantity received, quantity outstanding, supplier unit cost, and total. Outstanding is shown in bold when there is still something to come.
 
 ### 13.4 Receiving goods against an order
 
@@ -1895,7 +1924,7 @@ Requires the raise purchase orders permission.
 1. Purchasing → Purchase orders → **New purchase order**.
 2. Choose an **approved** supplier and the delivery warehouse. If the supplier is not listed, they must be approved first.
 3. Set the expected delivery date, or leave it blank to use the supplier's usual lead time.
-4. Add each product with its quantity and unit cost. Use **＋ New medicine** if something is not catalogued yet.
+4. Add each product with its quantity. The supplier unit cost is pre-filled from the catalogue — replace it with what the supplier actually quoted. Use **＋ New medicine** if something is not catalogued yet.
 5. Set a **minimum acceptable expiry** on any line where short-dated stock would be a problem. Anything shorter is refused when the delivery arrives.
 6. Add freight, customs duty, and other charges if you know them.
 7. Click **Save and submit** to send it for approval, or **Save draft** to finish it later.
@@ -1979,7 +2008,7 @@ Requires create medicine.
 
 1. Catalogue → Medicines → New.
 2. Fill in identification: name, dosage form, category, unit.
-3. Enter unit cost, selling price, and VAT rate.
+3. Enter reference cost, selling price, and VAT rate.
 4. Set the reorder level and safety stock.
 5. Choose the storage conditions.
 6. Tick prescription required and controlled substance where they apply.
