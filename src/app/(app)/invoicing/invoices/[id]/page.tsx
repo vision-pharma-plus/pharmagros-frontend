@@ -61,9 +61,9 @@ export default function InvoiceDetailPage() {
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [declaring, setDeclaring] = useState(false);
-  const [receiptBusy, setReceiptBusy] = useState<
-    "download" | "print" | "email" | null
-  >(null);
+  const [receiptBusy, setReceiptBusy] = useState<"download" | "print" | null>(
+    null,
+  );
   const [payOpen, setPayOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -121,36 +121,31 @@ export default function InvoiceDetailPage() {
   };
 
   /**
-   * The three things a customer may ask for once they have paid.
+   * Hand the customer their receipt, on screen or on paper.
    *
    * The receipt is a separate document from the invoice with its own print
    * counter, so these hit the receipt endpoint rather than reusing the invoice
    * one — printing an invoice is not evidence that a receipt was issued.
    */
-  const receiptAction = async (action: "download" | "print" | "email") => {
+  const receiptAction = async (action: "download" | "print") => {
     const receipt = invoice.data?.payment_receipt_id;
     const number = invoice.data?.payment_receipt_number ?? "";
     if (!receipt) return;
 
     setReceiptBusy(action);
     try {
-      if (action === "email") {
-        await api.post(`/invoicing/receipts/${receipt}/email/`);
-        toast.success(t.toasts.invoiceEmailQueued, number);
+      const blob = await api.download(`/invoicing/receipts/${receipt}/pdf/`, {
+        language: locale,
+      });
+      if (action === "print") {
+        printBlob(blob);
+        toast.success(t.toasts.invoiceSentToPrinter, number);
       } else {
-        const blob = await api.download(`/invoicing/receipts/${receipt}/pdf/`, {
-          language: locale,
-        });
-        if (action === "print") {
-          printBlob(blob);
-          toast.success(t.toasts.invoiceSentToPrinter, number);
-        } else {
-          saveBlob(blob, `${number}.pdf`);
-        }
+        saveBlob(blob, `${number}.pdf`);
       }
     } catch (caught) {
       toast.error(
-        action === "email" ? t.toasts.emailFailed : t.toasts.pdfFailed,
+        t.toasts.pdfFailed,
         caught instanceof ApiError ? translateError(caught, t) : undefined,
       );
     } finally {
@@ -380,17 +375,6 @@ export default function InvoiceDetailPage() {
               <Printer className="h-4 w-4" />
               {t.invoicing.printReceipt}
             </Button>
-            {can("invoicing.record_payment") && (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={receiptBusy === "email"}
-                onClick={() => void receiptAction("email")}
-              >
-                <Send className="h-4 w-4" />
-                {t.invoicing.emailReceipt}
-              </Button>
-            )}
           </div>
         </Alert>
       )}

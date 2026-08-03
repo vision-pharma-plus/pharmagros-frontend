@@ -458,7 +458,6 @@ export const fr = {
       "Facture réglée intégralement. Un reçu a été émis automatiquement.",
     downloadReceipt: "Télécharger le reçu",
     printReceipt: "Imprimer le reçu",
-    emailReceipt: "Envoyer le reçu par e-mail",
     receiptCancelled: "Reçu annulé",
     overdue: "En retard",
     daysOverdue: "jours de retard",
@@ -1000,10 +999,6 @@ export const fr = {
     pdfFailed: "Échec du téléchargement du PDF",
     receiptSentToPrinter: "Reçu envoyé à l'imprimante",
     invoiceSentToPrinter: "Facture envoyée à l'imprimante",
-    // L'envoi part en file d'attente : le message confirme la mise en file,
-    // pas la remise, que le serveur ne peut pas encore garantir.
-    invoiceEmailQueued: "Document mis en file d'attente pour envoi",
-    emailFailed: "Échec de l'envoi de l'e-mail",
     // Volontairement sans nom de document : la même erreur couvre le reçu et
     // la facture, et le numéro du document figure déjà en détail du message.
     printFailed: "Échec de l'impression",
@@ -1516,7 +1511,6 @@ export const en: Dictionary = {
       "Invoice settled in full. A receipt was issued automatically.",
     downloadReceipt: "Download receipt",
     printReceipt: "Print receipt",
-    emailReceipt: "Email the receipt",
     receiptCancelled: "Receipt cancelled",
     overdue: "Overdue",
     daysOverdue: "days overdue",
@@ -2046,8 +2040,6 @@ export const en: Dictionary = {
     pdfFailed: "Could not download the PDF",
     receiptSentToPrinter: "Receipt sent to the printer",
     invoiceSentToPrinter: "Invoice sent to the printer",
-    invoiceEmailQueued: "Document queued for delivery",
-    emailFailed: "Could not send the email",
     printFailed: "Could not print",
     reportDownloaded: "Report downloaded",
     allMarkedRead: "All notifications marked as read",
