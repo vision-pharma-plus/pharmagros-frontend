@@ -37,13 +37,14 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, printBlob, saveBlob } from "@/lib/api/client";
 import type { Invoice, SalesReceipt } from "@/lib/api/types";
-import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 export default function ReceiptDetailPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { locale } = useLocale();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -254,13 +255,13 @@ export default function ReceiptDetailPage() {
                         </div>
                       </TD>
                       <TD className="text-right tabular-nums">
-                        {formatQuantity(line.quantity)}
+                        {fmt.quantity(line.quantity)}
                       </TD>
                       <TD className="text-right tabular-nums">
-                        {formatMoney(line.unit_price)}
+                        {fmt.money(line.unit_price)}
                       </TD>
                       <TD className="text-right tabular-nums">
-                        {formatMoney(line.line_total)}
+                        {fmt.money(line.line_total)}
                       </TD>
                     </TR>
                   ))}
@@ -278,28 +279,28 @@ export default function ReceiptDetailPage() {
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.common.subtotal}</span>
-                <span className="tabular-nums">{formatMoney(data.subtotal)}</span>
+                <span className="tabular-nums">{fmt.money(data.subtotal)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.tax}</span>
-                <span className="tabular-nums">{formatMoney(data.tax_amount)}</span>
+                <span className="tabular-nums">{fmt.money(data.tax_amount)}</span>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
                 <span>{t.common.total}</span>
                 <span className="tabular-nums">
-                  {formatMoney(data.total_amount)}
+                  {fmt.money(data.total_amount)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.tendered}</span>
                 <span className="tabular-nums">
-                  {formatMoney(data.amount_tendered)}
+                  {fmt.money(data.amount_tendered)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.changeDue}</span>
                 <span className="tabular-nums">
-                  {formatMoney(data.change_given)}
+                  {fmt.money(data.change_given)}
                 </span>
               </div>
             </CardContent>

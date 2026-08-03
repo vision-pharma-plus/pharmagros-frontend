@@ -34,9 +34,8 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { MedicineListItem, PurchaseOrder } from "@/lib/api/types";
-import { formatMoney } from "@/lib/format";
 import { translateError } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface OrderLine {
@@ -81,6 +80,7 @@ const lineNet = (line: OrderLine): number => {
 
 export function OrderForm({ order }: { order?: PurchaseOrder }) {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
   const isEdit = Boolean(order);
@@ -361,7 +361,7 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
                     num(line.catalogCost) > 0
                       ? t.purchasing.unitCostCatalogHint.replace(
                           "%{cost}",
-                          formatMoney(line.catalogCost, { decimals: 2 }),
+                          fmt.money(line.catalogCost, { decimals: 2 }),
                         )
                       : undefined
                   }
@@ -410,7 +410,7 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
               </div>
 
               <p className="text-sm text-muted-foreground">
-                {t.purchasing.lineTotal}: {formatMoney(String(lineNet(line)))}
+                {t.purchasing.lineTotal}: {fmt.money(String(lineNet(line)))}
               </p>
             </div>
           ))}
@@ -472,11 +472,11 @@ export function OrderForm({ order }: { order?: PurchaseOrder }) {
               <dt className="text-muted-foreground">
                 {t.purchasing.orderSubtotal}
               </dt>
-              <dd>{formatMoney(String(goodsTotal))}</dd>
+              <dd>{fmt.money(String(goodsTotal))}</dd>
             </div>
             <div className="flex justify-between font-medium">
               <dt>{t.common.total}</dt>
-              <dd>{formatMoney(String(landedTotal))}</dd>
+              <dd>{fmt.money(String(landedTotal))}</dd>
             </div>
           </dl>
         </CardContent>

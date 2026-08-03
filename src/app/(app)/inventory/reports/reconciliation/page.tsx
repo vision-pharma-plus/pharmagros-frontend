@@ -6,9 +6,8 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Alert, Badge, Select } from "@/components/ui/primitives";
 import type { Paginated } from "@/lib/api/client";
 import type { Warehouse } from "@/lib/api/types";
-import { formatQuantity } from "@/lib/format";
 import { useQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 interface Discrepancy {
   batch_id: string;
@@ -34,6 +33,7 @@ interface ReconciliationResponse {
  */
 export default function ReconciliationReportPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     warehouse: "",
   });
@@ -62,13 +62,13 @@ export default function ReconciliationReportPage() {
       key: "cached",
       header: t.inventory.quantityRemaining,
       numeric: true,
-      render: (row) => formatQuantity(row.cached_balance),
+      render: (row) => fmt.quantity(row.cached_balance),
     },
     {
       key: "ledger",
       header: t.inventory.balanceAfter,
       numeric: true,
-      render: (row) => formatQuantity(row.ledger_balance),
+      render: (row) => fmt.quantity(row.ledger_balance),
     },
     {
       key: "delta",
@@ -81,7 +81,7 @@ export default function ReconciliationReportPage() {
         return (
           <span className="font-medium text-destructive">
             {isNegative ? "" : "+"}
-            {formatQuantity(row.discrepancy)}
+            {fmt.quantity(row.discrepancy)}
           </span>
         );
       },

@@ -33,21 +33,48 @@ const NBSP = " ";
  * `white-space` on the amount rather than by the character. English uses the
  * comma its readers expect.
  *
- * The PDF templates in backend/templates/pdf/ format money independently and
- * are deliberately untouched, so printed documents keep U+202F.
+ * Print is a different medium and keeps its own rule: `apps.core.money`
+ * formats server-side documents with U+202F for French, where the tighter
+ * space is unambiguous on paper at document sizes. The two are deliberately
+ * allowed to differ here — a screen and a printed page are read under
+ * different conditions — but the digits and grouping positions are identical,
+ * so a printout still reconciles line for line with the screen it came from.
  */
 const GROUP_SEPARATOR: Record<Locale, string> = {
   fr: " ",
   en: ",",
 };
 
+/** The decimal mark for a locale: comma in French, point in English. */
+const DECIMAL_SEPARATOR: Record<Locale, string> = {
+  fr: ",",
+  en: ".",
+};
+
+/**
+ * Group the integer part and set the decimal mark for a locale.
+ *
+ * The one place separators are applied, so money, quantities and percentages
+ * cannot drift apart: a screen that shows "1,5 kg" beside "1.5 %" looks like
+ * two different numbers written by two different systems.
+ */
+function localiseDigits(text: string, locale: Locale): string {
+  const [whole = "0", fraction] = text.split(".");
+  const grouped = whole.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    GROUP_SEPARATOR[locale],
+  );
+  return fraction ? `${grouped}${DECIMAL_SEPARATOR[locale]}${fraction}` : grouped;
+}
+
 /**
  * Format a BIF amount for display.
  *
- * BIF has no circulating subunit, so amounts print as whole francs with a
- * narrow no-break space as the thousands separator — the French/Burundian
- * convention. The same separator is used in English output so an English
- * export remains line-for-line reconcilable with the French original.
+ * BIF has no circulating subunit, so amounts print as whole francs. Grouping
+ * and the decimal mark follow the locale: an English reader sees "171,570
+ * BIF" where a French one sees the same figure grouped their own way. The two
+ * remain line-for-line reconcilable because the digits are identical — only
+ * the separators differ.
  */
 export function formatMoney(
   value: string | number | null | undefined,
@@ -67,15 +94,7 @@ export function formatMoney(
   }
 
   const negative = amount.isNegative();
-  const rounded = amount.abs().toFixed(decimals);
-  const [whole = "0", fraction] = rounded.split(".");
-
-  const grouped = whole.replace(
-    /\B(?=(\d{3})+(?!\d))/g,
-    GROUP_SEPARATOR[locale],
-  );
-  const decimalSeparator = locale === "fr" ? "," : ".";
-  const body = fraction ? `${grouped}${decimalSeparator}${fraction}` : grouped;
+  const body = localiseDigits(amount.abs().toFixed(decimals), locale);
 
   const sign = negative ? "−" : ""; // true minus sign, not hyphen
   return showCurrency ? `${sign}${body}${NBSP}BIF` : `${sign}${body}`;
@@ -90,7 +109,7 @@ export function formatMoney(
  */
 export function formatMoneyCompact(
   value: string | number | null | undefined,
-  locale: Locale = "fr",
+  locale: Locale = DEFAULT_LOCALE,
   options: { showCurrency?: boolean } = {},
 ): string {
   const { showCurrency = true } = options;
@@ -108,24 +127,36 @@ export function formatMoneyCompact(
 
   const abs = amount.abs();
   const sign = amount.isNegative() ? "−" : "";
-  const decimalSeparator = locale === "fr" ? "," : ".";
 
   const scale = (divisor: string, suffix: string) =>
-    `${sign}${abs
-      .dividedBy(divisor)
-      .toFixed(1)
-      .replace(".", decimalSeparator)} ${suffix}${suffixCurrency}`;
+    `${sign}${localiseDigits(
+      abs.dividedBy(divisor).toFixed(1),
+      locale,
+    )} ${suffix}${suffixCurrency}`;
 
-  if (abs.greaterThanOrEqualTo("1000000000")) return scale("1000000000", "Md");
+  // "Md" is the French abbreviation for milliard; English readers expect "B".
+  // A billion mislabelled as a million is the largest possible misreading on
+  // a dashboard tile, so the suffix follows the locale like the separators do.
+  const billions = locale === "fr" ? "Md" : "B";
+
+  if (abs.greaterThanOrEqualTo("1000000000")) return scale("1000000000", billions);
   if (abs.greaterThanOrEqualTo("1000000")) return scale("1000000", "M");
   if (abs.greaterThanOrEqualTo("1000")) return scale("1000", "k");
-  return formatMoney(value, { showCurrency });
+  return formatMoney(value, { showCurrency, locale });
 }
 
-/** Quantities keep up to 3 decimals but drop trailing zeros. */
+/**
+ * Quantities keep up to 3 decimals but drop trailing zeros.
+ *
+ * The separators follow the locale like every other number on the page. They
+ * were previously hardcoded to French, so an English user reading "1,5" saw
+ * what their own convention calls one-and-a-half written as fifteen hundred —
+ * on a dispensing quantity that is a dosing error, not a cosmetic one.
+ */
 export function formatQuantity(
   value: string | number | null | undefined,
   unit?: string,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -136,23 +167,23 @@ export function formatQuantity(
     return "—";
   }
 
-  const text = quantity
-    .toFixed(3)
-    .replace(/\.?0+$/, "")
-    .replace(".", ",");
+  // Trailing zeros go, but the decimal point must go with them: "35.000"
+  // trimmed to "35." would localise to "35," and read as an unfinished number.
+  const text = quantity.toFixed(3).replace(/\.?0+$/, "");
   // Same visibility problem as formatMoney: a U+202F between the digits makes
   // 2 400 tablets read as 240 on screen.
-  const grouped = text.replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEPARATOR.fr);
+  const grouped = localiseDigits(text, locale);
   return unit ? `${grouped} ${unit}` : grouped;
 }
 
 export function formatPercent(
   value: string | number | null | undefined,
   decimals = 1,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (value === null || value === undefined || value === "") return "—";
   try {
-    return `${new Decimal(value).toFixed(decimals).replace(".", ",")} %`;
+    return `${localiseDigits(new Decimal(value).toFixed(decimals), locale)} %`;
   } catch {
     return "—";
   }

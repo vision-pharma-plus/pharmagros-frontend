@@ -3,9 +3,9 @@
 import { DataTable, type Column } from "@/components/data-table";
 import { Alert, Badge } from "@/components/ui/primitives";
 import type { SaleReturn } from "@/lib/api/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /**
  * Returns are raised from the sale they reverse, so this screen is a
@@ -14,6 +14,7 @@ import { useTranslation } from "@/lib/i18n/provider";
  */
 export default function SaleReturnsPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
   });
@@ -76,7 +77,7 @@ export default function SaleReturnsPage() {
       header: t.sales.refundAmount,
       numeric: true,
       render: (row) => (
-        <span className="font-medium">{formatMoney(row.total_amount)}</span>
+        <span className="font-medium">{fmt.money(row.total_amount)}</span>
       ),
     },
   ];

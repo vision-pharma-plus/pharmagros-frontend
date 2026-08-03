@@ -10,13 +10,14 @@ import { Badge, Select, fiscalVariant, statusVariant } from "@/components/ui/pri
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, saveBlob } from "@/lib/api/client";
 import type { InvoiceListItem } from "@/lib/api/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 export default function InvoicesPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { locale } = useLocale();
   const router = useRouter();
   const can = useAuth((state) => state.can);
@@ -110,7 +111,7 @@ export default function InvoicesPage() {
       key: "total",
       header: t.invoicing.totalAmount,
       numeric: true,
-      render: (row) => formatMoney(row.total_amount),
+      render: (row) => fmt.money(row.total_amount),
     },
     {
       key: "balance",
@@ -132,7 +133,7 @@ export default function InvoicesPage() {
                 row.is_overdue ? "font-semibold text-destructive" : undefined
               }
             >
-              {formatMoney(row.balance_due)}
+              {fmt.money(row.balance_due)}
             </span>
             {isPartial && (
               <div
@@ -198,8 +199,13 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-semibold">{t.nav.invoices}</h1>
           <p className="text-sm text-muted-foreground">{t.nav.invoicing}</p>
         </div>
-        {can("invoicing.add_invoice") && (
-          <Button onClick={() => router.push("/invoicing/invoices/new")}>
+        {/* An invoice is raised by making a credit sale, not by typing the
+            document directly: a credit sale already issues and posts one, and
+            it is the only path that also moves the stock the invoice bills
+            for. The separate invoice form let those two diverge, so it is gone
+            and this goes to the sale screen with the type preselected. */}
+        {can("invoicing.add_invoice") && can("sales.add_sale") && (
+          <Button onClick={() => router.push("/sales/new?type=CREDIT")}>
             <Plus className="h-4 w-4" />
             {t.invoicing.newInvoice}
           </Button>

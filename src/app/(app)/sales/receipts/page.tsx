@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { DataTable, type Column } from "@/components/data-table";
 import { Badge } from "@/components/ui/primitives";
 import type { SalesReceiptListItem } from "@/lib/api/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /**
  * The register of cash sale receipts.
@@ -19,6 +19,7 @@ import { useTranslation } from "@/lib/i18n/provider";
  */
 export default function SalesReceiptsPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
@@ -91,7 +92,7 @@ export default function SalesReceiptsPage() {
       header: t.common.total,
       numeric: true,
       render: (row) => (
-        <span className="font-medium">{formatMoney(row.total_amount)}</span>
+        <span className="font-medium">{fmt.money(row.total_amount)}</span>
       ),
     },
   ];

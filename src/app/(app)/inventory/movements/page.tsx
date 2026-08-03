@@ -4,14 +4,14 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Badge, Select } from "@/components/ui/primitives";
 import type { StockMovement, Warehouse } from "@/lib/api/types";
 import type { Paginated } from "@/lib/api/client";
-import { formatDateTime, formatMoney, formatQuantity } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import {
   useDebounced,
   usePaginatedQuery,
   useQuery,
   useUrlFilters,
 } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /**
  * Movement types offered as filters.
@@ -37,6 +37,7 @@ const MOVEMENT_TYPES = [
 
 export default function StockMovementsPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
     movement_type: "",
@@ -110,7 +111,7 @@ export default function StockMovementsPage() {
             }
           >
             {isNegative ? "" : "+"}
-            {formatQuantity(row.quantity_delta)}
+            {fmt.quantity(row.quantity_delta)}
           </span>
         );
       },
@@ -119,13 +120,13 @@ export default function StockMovementsPage() {
       key: "balance",
       header: t.inventory.balanceAfter,
       numeric: true,
-      render: (row) => formatQuantity(row.balance_after),
+      render: (row) => fmt.quantity(row.balance_after),
     },
     {
       key: "value",
       header: t.inventory.stockValue,
       numeric: true,
-      render: (row) => formatMoney(row.total_value),
+      render: (row) => fmt.money(row.total_value),
     },
     {
       key: "source",

@@ -25,14 +25,14 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { CustomerListItem, Payment } from "@/lib/api/types";
-import { formatDateTime, formatMoney } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import {
   translateError,
   useDebounced,
   usePaginatedQuery,
   useUrlFilters,
 } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 /** Mirrors `apps.invoicing.models.PaymentMethod`. */
@@ -47,6 +47,7 @@ const METHODS = [
 
 export default function PaymentsPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const can = useAuth((state) => state.can);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
@@ -183,14 +184,14 @@ export default function PaymentsPage() {
       header: t.invoicing.amountReceived,
       numeric: true,
       render: (row) => (
-        <span className="font-medium">{formatMoney(row.amount)}</span>
+        <span className="font-medium">{fmt.money(row.amount)}</span>
       ),
     },
     {
       key: "allocated",
       header: t.invoicing.allocatedAmount,
       numeric: true,
-      render: (row) => formatMoney(row.allocated_amount),
+      render: (row) => fmt.money(row.allocated_amount),
     },
     {
       key: "unallocated",
@@ -206,7 +207,7 @@ export default function PaymentsPage() {
               : undefined
           }
         >
-          {formatMoney(row.unallocated_amount)}
+          {fmt.money(row.unallocated_amount)}
         </span>
       ),
     },
@@ -380,7 +381,7 @@ export default function PaymentsPage() {
               </Alert>
             )}
             <Alert variant="warning">
-              {reversing?.reference} &middot; {formatMoney(reversing?.amount ?? "0")}
+              {reversing?.reference} &middot; {fmt.money(reversing?.amount ?? "0")}
             </Alert>
             <Field label={t.invoicing.reversalReason} required>
               <Textarea

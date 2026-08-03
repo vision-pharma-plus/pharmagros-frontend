@@ -646,6 +646,9 @@ export interface Invoice extends InvoiceListItem {
   print_count: number;
   original_invoice: UUID | null;
   original_invoice_number: string | null;
+  /** The receipt raised when this invoice was settled in full, if it was. */
+  payment_receipt_id: string | null;
+  payment_receipt_number: string | null;
   credit_reason_code: CreditNoteReason | "";
   corrections: InvoiceCorrection[];
   is_editable: boolean;
@@ -809,6 +812,11 @@ export interface DashboardKPIs {
     monthly_revenue: Money;
     monthly_transactions: number;
     monthly_margin?: Money;
+    /** The window the figures above cover, so the tiles can label it. */
+    period_start: string;
+    period_end: string;
+    /** True when an explicit range was applied rather than the defaults. */
+    is_filtered: boolean;
   };
   receivables: {
     outstanding_total: Money;

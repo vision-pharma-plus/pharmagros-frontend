@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, Plus, Printer, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { EntityPicker } from "@/components/entity-picker";
@@ -35,9 +35,9 @@ import type {
   Sale,
   Warehouse,
 } from "@/lib/api/types";
-import { computeLine, formatMoney, money, priceExclVat } from "@/lib/format";
+import { computeLine, money, priceExclVat } from "@/lib/format";
 import { translateError, translateErrorDetailed, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface DraftLine {
@@ -62,13 +62,28 @@ const emptyLine = (): DraftLine => ({
 
 export default function NewSalePage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { locale } = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const can = useAuth((state) => state.can);
 
   const [customer, setCustomer] = useState<CustomerListItem | null>(null);
   const [warehouseId, setWarehouseId] = useState("");
-  const [saleType, setSaleType] = useState<"CASH" | "CREDIT">("CASH");
+  /**
+   * `?type=CREDIT` preselects a credit sale — how "New invoice" arrives here,
+   * since a credit sale is what raises an invoice.
+   *
+   * Still gated on the permission: the CREDIT option is hidden from anyone
+   * without it, and a URL must not select what the form would not offer. A
+   * lazy initialiser rather than an effect, so the first render is already
+   * correct and the operator never sees the type flip under them.
+   */
+  const [saleType, setSaleType] = useState<"CASH" | "CREDIT">(() =>
+    searchParams.get("type") === "CREDIT" && can("sales.sell_on_credit")
+      ? "CREDIT"
+      : "CASH",
+  );
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
@@ -232,8 +247,8 @@ export default function NewSalePage() {
     creditIneligibleDetail?.fix,
     shortTender &&
       t.blockers.tenderBelowTotal(
-        formatMoney(amountTendered, { locale }),
-        formatMoney(totals.total, { locale }),
+        fmt.money(amountTendered),
+        fmt.money(totals.total),
       ),
   ].filter((entry): entry is string => typeof entry === "string");
 
@@ -540,7 +555,7 @@ export default function NewSalePage() {
                           getKey={(item) => item.id}
                           getLabel={(item) => item.display_name}
                           getSublabel={(item) =>
-                            `${item.product_code} · ${formatMoney(item.selling_price)}`
+                            `${item.product_code} · ${fmt.money(item.selling_price)}`
                           }
                           params={{ status: "ACTIVE" }}
                         />
@@ -617,7 +632,7 @@ export default function NewSalePage() {
                           {t.sales.lineTotal}
                         </p>
                         <p className="truncate font-semibold tabular-nums">
-                          {computed ? formatMoney(computed.total) : "—"}
+                          {computed ? fmt.money(computed.total) : "—"}
                         </p>
                       </div>
                       <Button
@@ -719,23 +734,23 @@ export default function NewSalePage() {
             <CardContent className="space-y-3 text-sm lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.common.subtotal}</span>
-                <span className="tabular-nums">{formatMoney(totals.gross)}</span>
+                <span className="tabular-nums">{fmt.money(totals.gross)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.discount}</span>
                 <span className="tabular-nums">
                   {money.isZero(totals.discount)
-                    ? formatMoney("0")
-                    : `− ${formatMoney(totals.discount)}`}
+                    ? fmt.money("0")
+                    : `− ${fmt.money(totals.discount)}`}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.tax}</span>
-                <span className="tabular-nums">{formatMoney(totals.tax)}</span>
+                <span className="tabular-nums">{fmt.money(totals.tax)}</span>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
                 <span>{t.common.total}</span>
-                <span className="tabular-nums">{formatMoney(totals.total)}</span>
+                <span className="tabular-nums">{fmt.money(totals.total)}</span>
               </div>
 
               {/* States which document the sale will produce, before the
@@ -752,7 +767,7 @@ export default function NewSalePage() {
               {changeDue !== null && !shortTender && (
                 <div className="flex justify-between border-t border-border pt-3 text-sm font-semibold">
                   <span>{t.sales.changeDue}</span>
-                  <span className="tabular-nums">{formatMoney(changeDue)}</span>
+                  <span className="tabular-nums">{fmt.money(changeDue)}</span>
                 </div>
               )}
 
@@ -768,7 +783,7 @@ export default function NewSalePage() {
                       {t.partners.availableCredit}
                     </span>
                     <span className="tabular-nums">
-                      {formatMoney(customer.available_credit)}
+                      {fmt.money(customer.available_credit)}
                     </span>
                   </div>
                 </div>

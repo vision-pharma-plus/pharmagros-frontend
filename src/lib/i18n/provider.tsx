@@ -21,6 +21,14 @@ import {
 } from "react";
 
 import {
+  formatDays,
+  formatMoney,
+  formatMoneyCompact,
+  formatPercent,
+  formatQuantity,
+  formatRelativeDays,
+} from "../format";
+import {
   DEFAULT_LOCALE,
   dictionaries,
   type Dictionary,
@@ -110,6 +118,44 @@ export function localizedName(
   locale: Locale,
 ): string {
   return locale === "en" ? record.name_en : record.name_fr;
+}
+
+/**
+ * The number formatters, bound to the active locale.
+ *
+ * Every formatter takes an optional `locale`, but each call site has to
+ * remember to pass it — and 80-odd of them did not, which is how French
+ * separators ended up on English screens. This hook removes the opportunity:
+ * `const fmt = useFormat()` then `fmt.money(x)` is always locale-correct, and
+ * a page that uses it cannot regress by adding one more unqualified call.
+ *
+ * The bare functions remain exported for non-React callers and for the cases
+ * that deliberately pin a locale, such as rendering a French document for a
+ * francophone customer regardless of who is logged in.
+ */
+export function useFormat() {
+  const { locale } = useLocale();
+
+  return useMemo(
+    () => ({
+      locale,
+      money: (
+        value: Parameters<typeof formatMoney>[0],
+        options: Omit<NonNullable<Parameters<typeof formatMoney>[1]>, "locale"> = {},
+      ) => formatMoney(value, { ...options, locale }),
+      moneyCompact: (
+        value: Parameters<typeof formatMoneyCompact>[0],
+        options: Parameters<typeof formatMoneyCompact>[2] = {},
+      ) => formatMoneyCompact(value, locale, options),
+      quantity: (value: Parameters<typeof formatQuantity>[0], unit?: string) =>
+        formatQuantity(value, unit, locale),
+      percent: (value: Parameters<typeof formatPercent>[0], decimals?: number) =>
+        formatPercent(value, decimals, locale),
+      days: (value: number) => formatDays(value, locale),
+      relativeDays: (days: number) => formatRelativeDays(days, locale),
+    }),
+    [locale],
+  );
 }
 
 /** Reads the persisted locale outside React, for the API client's header. */

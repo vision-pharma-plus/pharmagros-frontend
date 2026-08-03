@@ -1,30 +1,27 @@
 "use client";
 
-import { useState } from "react";
-
 import { DataTable, type Column } from "@/components/data-table";
 import { Badge, Select } from "@/components/ui/primitives";
 import type { StockLevel } from "@/lib/api/types";
-import { formatQuantity } from "@/lib/format";
-import { useQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
-
-type StockFilter = "" | "low_stock" | "out_of_stock" | "in_stock";
+import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 export default function StockLevelsPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     filter: "",
+    search: "",
   });
+  const debouncedSearch = useDebounced(filters.search);
 
-  // This endpoint returns a plain array rather than a paginated envelope: it
-  // is an aggregate across all products, and the operator needs the whole
-  // picture at once to plan replenishment.
-  const query = useQuery<StockLevel[]>("/inventory/stock-levels/", {
+  // Paginated: the catalogue runs to thousands of products, and rendering
+  // every row before showing any of them made this the slowest screen in the
+  // application. Search is what replaces scrolling the whole list.
+  const query = usePaginatedQuery<StockLevel>("/inventory/stock-levels/", {
     filter: filters.filter || undefined,
+    search: debouncedSearch || undefined,
   });
-
-  const rows = query.data ?? [];
 
   const columns: Column<StockLevel>[] = [
     {
@@ -43,7 +40,7 @@ export default function StockLevelsPage() {
       key: "onHand",
       header: t.inventory.quantityRemaining,
       numeric: true,
-      render: (row) => formatQuantity(row.quantity_on_hand),
+      render: (row) => fmt.quantity(row.quantity_on_hand),
     },
     {
       key: "available",
@@ -51,7 +48,7 @@ export default function StockLevelsPage() {
       numeric: true,
       render: (row) => (
         <span className="font-medium">
-          {formatQuantity(row.quantity_available)}
+          {fmt.quantity(row.quantity_available)}
         </span>
       ),
     },
@@ -61,7 +58,7 @@ export default function StockLevelsPage() {
       numeric: true,
       render: (row) => (
         <span className="text-muted-foreground">
-          {formatQuantity(row.reorder_level)}
+          {fmt.quantity(row.reorder_level)}
         </span>
       ),
     },
@@ -94,13 +91,20 @@ export default function StockLevelsPage() {
 
       <DataTable
         columns={columns}
-        rows={rows}
+        rows={query.items}
         rowKey={(row) => row.product_id}
         loading={query.loading}
         error={query.error}
         onRetry={query.refetch}
+        search={filters.search}
+        onSearchChange={(value) => setFilter("search", value)}
+        searchPlaceholder={`${t.common.search}…`}
         isFiltered={isFiltered}
         onClearFilters={clearFilters}
+        page={query.page}
+        totalPages={query.totalPages}
+        count={query.count}
+        onPageChange={query.setPage}
         toolbar={
           <Select
             value={filters.filter}

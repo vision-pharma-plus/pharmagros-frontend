@@ -50,9 +50,8 @@ import type {
   PurchaseOrderLine,
   Warehouse,
 } from "@/lib/api/types";
-import { formatQuantity } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 type Mode = "order" | "direct";
@@ -90,6 +89,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ReceiveStockPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const searchParams = useSearchParams();
   const can = useAuth((state) => state.can);
@@ -525,7 +525,7 @@ export default function ReceiveStockPage() {
                       <span className="ml-2 font-normal text-muted-foreground">
                         {poLine.product_code} ·{" "}
                         {t.purchasing.quantityOutstanding}:{" "}
-                        {formatQuantity(poLine.quantity_outstanding)}
+                        {fmt.quantity(poLine.quantity_outstanding)}
                       </span>
                     )}
                   </p>

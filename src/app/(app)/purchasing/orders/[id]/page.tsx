@@ -37,9 +37,9 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { PurchaseOrder } from "@/lib/api/types";
-import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -63,6 +63,7 @@ type ReasonAction = "reject" | "cancel";
  */
 export default function PurchaseOrderDetailPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const can = useAuth((state) => state.can);
@@ -306,39 +307,39 @@ export default function PurchaseOrderDetailPage() {
           <CardContent className="divide-y">
             <DetailRow
               label={t.common.subtotal}
-              value={formatMoney(data.subtotal)}
+              value={fmt.money(data.subtotal)}
             />
             <DetailRow
               label={t.sales.discount}
-              value={formatMoney(data.discount_amount)}
+              value={fmt.money(data.discount_amount)}
             />
             <DetailRow
               label={t.sales.tax}
-              value={formatMoney(data.tax_amount)}
+              value={fmt.money(data.tax_amount)}
             />
             <DetailRow
               label={t.purchasing.freightCost}
-              value={formatMoney(data.freight_cost)}
+              value={fmt.money(data.freight_cost)}
             />
             <DetailRow
               label={t.purchasing.customsDuty}
-              value={formatMoney(data.customs_duty)}
+              value={fmt.money(data.customs_duty)}
             />
             <DetailRow
               label={t.purchasing.otherCharges}
-              value={formatMoney(data.other_charges)}
+              value={fmt.money(data.other_charges)}
             />
             {/* Landed total is the figure that reaches batch cost, so it is
                 separated from the goods-only total above it. */}
             <DetailRow
               label={t.inventory.landedCost}
-              value={formatMoney(data.landed_cost_total)}
+              value={fmt.money(data.landed_cost_total)}
             />
             <DetailRow
               label={t.common.total}
               value={
                 <span className="text-base">
-                  {formatMoney(data.total_amount)}
+                  {fmt.money(data.total_amount)}
                 </span>
               }
             />
@@ -371,8 +372,8 @@ export default function PurchaseOrderDetailPage() {
                       {line.product_code}
                     </p>
                   </TD>
-                  <TD numeric>{formatQuantity(line.quantity_ordered)}</TD>
-                  <TD numeric>{formatQuantity(line.quantity_received)}</TD>
+                  <TD numeric>{fmt.quantity(line.quantity_ordered)}</TD>
+                  <TD numeric>{fmt.quantity(line.quantity_received)}</TD>
                   <TD numeric>
                     <span
                       className={
@@ -381,11 +382,11 @@ export default function PurchaseOrderDetailPage() {
                           : "text-muted-foreground"
                       }
                     >
-                      {formatQuantity(line.quantity_outstanding)}
+                      {fmt.quantity(line.quantity_outstanding)}
                     </span>
                   </TD>
-                  <TD numeric>{formatMoney(line.unit_cost)}</TD>
-                  <TD numeric>{formatMoney(line.line_total)}</TD>
+                  <TD numeric>{fmt.money(line.unit_cost)}</TD>
+                  <TD numeric>{fmt.money(line.line_total)}</TD>
                 </TR>
               ))}
             </TBody>
@@ -405,7 +406,7 @@ export default function PurchaseOrderDetailPage() {
               </Alert>
             )}
             <p className="text-sm">
-              {data.order_number} · {formatMoney(data.total_amount)}
+              {data.order_number} · {fmt.money(data.total_amount)}
             </p>
             <Field label={t.common.notes}>
               <Textarea

@@ -32,9 +32,8 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { Supplier } from "@/lib/api/types";
-import { formatMoney, formatPercent } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface SupplierPerformance {
@@ -59,6 +58,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export default function SupplierDetailPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const can = useAuth((state) => state.can);
@@ -276,7 +276,7 @@ export default function SupplierDetailPage() {
                 />
                 <DetailRow
                   label={t.partners.onTimeRate}
-                  value={formatPercent(performance.data.on_time_rate)}
+                  value={fmt.percent(performance.data.on_time_rate)}
                 />
                 <DetailRow
                   label={t.partners.averageDelay}
@@ -284,7 +284,7 @@ export default function SupplierDetailPage() {
                 />
                 <DetailRow
                   label={t.partners.totalPurchaseValue}
-                  value={formatMoney(performance.data.total_purchase_value)}
+                  value={fmt.money(performance.data.total_purchase_value)}
                 />
               </div>
             ) : (

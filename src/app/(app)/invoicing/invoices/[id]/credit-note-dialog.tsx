@@ -32,9 +32,8 @@ import {
   type Invoice,
   type InvoiceLine,
 } from "@/lib/api/types";
-import { formatMoney, formatQuantity } from "@/lib/format";
 import { translateError } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 const REASONS: CreditNoteReason[] = [
   "GOODS_RETURNED",
@@ -94,6 +93,7 @@ export function CreditNoteDialog({
   onIssued: (creditNoteId: string) => void;
 }) {
   const t = useTranslation();
+  const fmt = useFormat();
 
   const [reasonCode, setReasonCode] = useState<CreditNoteReason>("GOODS_RETURNED");
   const [details, setDetails] = useState("");
@@ -282,7 +282,7 @@ export function CreditNoteDialog({
                             Number(entry.line.quantity) && (
                             <p className="text-xs text-muted-foreground">
                               {t.invoicing.returnableQuantity}:{" "}
-                              {formatQuantity(
+                              {fmt.quantity(
                                 entry.line.returnable_quantity,
                                 entry.line.unit_of_measure,
                               )}
@@ -290,12 +290,12 @@ export function CreditNoteDialog({
                           )}
                       </TD>
                       <TD numeric>
-                        {formatQuantity(
+                        {fmt.quantity(
                           entry.line.quantity,
                           entry.line.unit_of_measure,
                         )}
                       </TD>
-                      <TD numeric>{formatMoney(entry.line.unit_price)}</TD>
+                      <TD numeric>{fmt.money(entry.line.unit_price)}</TD>
                       <TD numeric>
                         <Input
                           type="number"
@@ -361,7 +361,7 @@ export function CreditNoteDialog({
 
           <div className="flex justify-between border-t border-border pt-3 text-base font-semibold">
             <span>{t.invoicing.creditNoteAmount}</span>
-            <span className="tabular-nums">{formatMoney(total)}</span>
+            <span className="tabular-nums">{fmt.money(total)}</span>
           </div>
         </DialogBody>
         <DialogFooter>

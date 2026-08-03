@@ -8,13 +8,13 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, statusVariant } from "@/components/ui/primitives";
 import type { CustomerListItem } from "@/lib/api/types";
-import { formatMoney } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 export default function CustomersPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
@@ -67,7 +67,7 @@ export default function CustomersPage() {
       key: "limit",
       header: t.partners.creditLimit,
       numeric: true,
-      render: (row) => formatMoney(row.credit_limit),
+      render: (row) => fmt.money(row.credit_limit),
     },
     {
       key: "balance",
@@ -82,7 +82,7 @@ export default function CustomersPage() {
             row.is_over_limit ? "font-semibold text-destructive" : undefined
           }
         >
-          {formatMoney(row.outstanding_balance)}
+          {fmt.money(row.outstanding_balance)}
         </span>
       ),
     },
@@ -90,7 +90,7 @@ export default function CustomersPage() {
       key: "available",
       header: t.partners.availableCredit,
       numeric: true,
-      render: (row) => formatMoney(row.available_credit),
+      render: (row) => fmt.money(row.available_credit),
     },
     {
       key: "status",

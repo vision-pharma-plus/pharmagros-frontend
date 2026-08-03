@@ -40,15 +40,9 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, type Paginated } from "@/lib/api/client";
 import type { Medicine, PriceHistoryEntry, StockBatch } from "@/lib/api/types";
-import {
-  formatDate,
-  formatDays,
-  formatMoney,
-  formatQuantity,
-  priceExclVat,
-} from "@/lib/format";
+import { formatDate, priceExclVat } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface StockResponse {
@@ -81,7 +75,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 export default function MedicineDetailPage() {
   const t = useTranslation();
-  const { locale } = useLocale();
+  const fmt = useFormat();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const can = useAuth((state) => state.can);
@@ -126,7 +120,7 @@ export default function MedicineDetailPage() {
         reason: reason.trim(),
       });
       setPriceOpen(false);
-      toast.success(t.toasts.priceChanged, formatMoney(newPrice));
+      toast.success(t.toasts.priceChanged, fmt.money(newPrice));
       medicine.refetch();
       history.refetch();
     } catch (caught) {
@@ -255,15 +249,15 @@ export default function MedicineDetailPage() {
           <CardContent className="divide-y divide-border">
             <DetailRow
               label={t.catalog.unitCost}
-              value={formatMoney(item.unit_cost)}
+              value={fmt.money(item.unit_cost)}
             />
             <DetailRow
               label={t.catalog.sellingPrice}
-              value={formatMoney(item.selling_price)}
+              value={fmt.money(item.selling_price)}
             />
             <DetailRow
               label={t.catalog.wholesalePrice}
-              value={formatMoney(item.wholesale_price)}
+              value={fmt.money(item.wholesale_price)}
             />
             <DetailRow
               label={t.catalog.vatRate}
@@ -275,7 +269,7 @@ export default function MedicineDetailPage() {
             />
             <DetailRow
               label={t.catalog.reorderLevel}
-              value={formatQuantity(item.reorder_level)}
+              value={fmt.quantity(item.reorder_level)}
             />
             <DetailRow
               label={t.catalog.storageCondition}
@@ -307,11 +301,11 @@ export default function MedicineDetailPage() {
               <>
                 <DetailRow
                   label={t.inventory.quantityRemaining}
-                  value={formatQuantity(stock.data.total_on_hand)}
+                  value={fmt.quantity(stock.data.total_on_hand)}
                 />
                 <DetailRow
                   label={t.inventory.quantityAvailable}
-                  value={formatQuantity(stock.data.total_available)}
+                  value={fmt.quantity(stock.data.total_available)}
                 />
                 <DetailRow
                   label={t.nav.batches}
@@ -354,12 +348,12 @@ export default function MedicineDetailPage() {
                       </span>
                       {!batch.is_expired && (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          {formatDays(batch.days_to_expiry, locale)}
+                          {fmt.days(batch.days_to_expiry)}
                         </span>
                       )}
                     </TD>
                     <TD numeric>
-                      {formatQuantity(batch.quantity_available)}
+                      {fmt.quantity(batch.quantity_available)}
                     </TD>
                     <TD>
                       <Badge variant={statusVariant(batch.status)}>
@@ -403,17 +397,17 @@ export default function MedicineDetailPage() {
                     </TD>
                     <TD numeric>
                       <span className="text-muted-foreground">
-                        {formatMoney(entry.old_unit_cost)}
+                        {fmt.money(entry.old_unit_cost)}
                       </span>
                       {" → "}
-                      {formatMoney(entry.new_unit_cost)}
+                      {fmt.money(entry.new_unit_cost)}
                     </TD>
                     <TD numeric>
                       <span className="text-muted-foreground">
-                        {formatMoney(entry.old_selling_price)}
+                        {fmt.money(entry.old_selling_price)}
                       </span>
                       {" → "}
-                      {formatMoney(entry.new_selling_price)}
+                      {fmt.money(entry.new_selling_price)}
                     </TD>
                     <TD>{entry.reason}</TD>
                     <TD>{entry.changed_by_name}</TD>
@@ -455,7 +449,7 @@ export default function MedicineDetailPage() {
               label={`${t.catalog.sellingPrice} (BIF)`}
               hint={
                 newPriceNet
-                  ? `${t.catalog.priceExclVat}: ${formatMoney(newPriceNet, { decimals: 2 })}`
+                  ? `${t.catalog.priceExclVat}: ${fmt.money(newPriceNet, { decimals: 2 })}`
                   : undefined
               }
             >

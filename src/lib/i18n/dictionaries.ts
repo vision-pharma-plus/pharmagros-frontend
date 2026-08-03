@@ -151,6 +151,21 @@ export const fr = {
     recentActivity: "Activité récente",
     transactions: "transactions",
     noDataForPeriod: "Aucune donnée pour cette période",
+    period: "Période",
+    periodFrom: "Du",
+    periodTo: "Au",
+    periodToday: "Aujourd'hui",
+    periodThisMonth: "Ce mois-ci",
+    periodLast30: "30 derniers jours",
+    periodThisYear: "Cette année",
+    periodCustom: "Personnalisée",
+    resetPeriod: "Réinitialiser",
+    // Tile labels once a range is applied: "Ventes du jour" would be a lie
+    // when the user has selected March.
+    salesForPeriod: "Ventes de la période",
+    marginForPeriod: "Marge de la période",
+    positionsAsOfNow:
+      "Stock et créances sont des positions actuelles et ne suivent pas le filtre de dates.",
   },
   catalog: {
     batchNumberHint:
@@ -437,6 +452,14 @@ export const fr = {
     bankReference: "Référence bancaire",
     downloadPdf: "Télécharger le PDF",
     emailInvoice: "Envoyer par e-mail",
+    // --- Reçu de paiement ---
+    paymentReceipt: "Reçu de paiement",
+    paymentReceiptIssued:
+      "Facture réglée intégralement. Un reçu a été émis automatiquement.",
+    downloadReceipt: "Télécharger le reçu",
+    printReceipt: "Imprimer le reçu",
+    emailReceipt: "Envoyer le reçu par e-mail",
+    receiptCancelled: "Reçu annulé",
     overdue: "En retard",
     daysOverdue: "jours de retard",
     amountInWords: "Arrêté la présente facture à la somme de",
@@ -977,6 +1000,10 @@ export const fr = {
     pdfFailed: "Échec du téléchargement du PDF",
     receiptSentToPrinter: "Reçu envoyé à l'imprimante",
     invoiceSentToPrinter: "Facture envoyée à l'imprimante",
+    // L'envoi part en file d'attente : le message confirme la mise en file,
+    // pas la remise, que le serveur ne peut pas encore garantir.
+    invoiceEmailQueued: "Document mis en file d'attente pour envoi",
+    emailFailed: "Échec de l'envoi de l'e-mail",
     // Volontairement sans nom de document : la même erreur couvre le reçu et
     // la facture, et le numéro du document figure déjà en détail du message.
     printFailed: "Échec de l'impression",
@@ -1192,6 +1219,19 @@ export const en: Dictionary = {
     recentActivity: "Recent activity",
     transactions: "transactions",
     noDataForPeriod: "No data for this period",
+    period: "Period",
+    periodFrom: "From",
+    periodTo: "To",
+    periodToday: "Today",
+    periodThisMonth: "This month",
+    periodLast30: "Last 30 days",
+    periodThisYear: "This year",
+    periodCustom: "Custom",
+    resetPeriod: "Reset",
+    salesForPeriod: "Sales for period",
+    marginForPeriod: "Margin for period",
+    positionsAsOfNow:
+      "Stock and receivables are current positions and do not follow the date filter.",
   },
   catalog: {
     batchNumberHint:
@@ -1470,6 +1510,14 @@ export const en: Dictionary = {
     bankReference: "Bank reference",
     downloadPdf: "Download PDF",
     emailInvoice: "Send by email",
+    // --- Payment receipt ---
+    paymentReceipt: "Payment receipt",
+    paymentReceiptIssued:
+      "Invoice settled in full. A receipt was issued automatically.",
+    downloadReceipt: "Download receipt",
+    printReceipt: "Print receipt",
+    emailReceipt: "Email the receipt",
+    receiptCancelled: "Receipt cancelled",
     overdue: "Overdue",
     daysOverdue: "days overdue",
     amountInWords: "The sum of",
@@ -1998,6 +2046,8 @@ export const en: Dictionary = {
     pdfFailed: "Could not download the PDF",
     receiptSentToPrinter: "Receipt sent to the printer",
     invoiceSentToPrinter: "Invoice sent to the printer",
+    invoiceEmailQueued: "Document queued for delivery",
+    emailFailed: "Could not send the email",
     printFailed: "Could not print",
     reportDownloaded: "Report downloaded",
     allMarkedRead: "All notifications marked as read",

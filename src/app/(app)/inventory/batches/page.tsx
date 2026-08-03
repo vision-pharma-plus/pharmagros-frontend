@@ -8,14 +8,9 @@ import { StockAdjustDialog } from "@/components/stock-adjust-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, Select, statusVariant } from "@/components/ui/primitives";
 import type { StockBatch } from "@/lib/api/types";
-import {
-  formatDate,
-  formatDays,
-  formatMoney,
-  formatQuantity,
-} from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 /**
@@ -36,7 +31,7 @@ const BATCH_STATUSES = [
 
 export default function BatchesPage() {
   const t = useTranslation();
-  const { locale } = useLocale();
+  const fmt = useFormat();
   const can = useAuth((state) => state.can);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
@@ -112,10 +107,10 @@ export default function BatchesPage() {
             ) : row.days_to_expiry <= 30 ? (
               <span className="flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
-                {t.inventory.expiringSoon} · {formatDays(row.days_to_expiry, locale)}
+                {t.inventory.expiringSoon} · {fmt.days(row.days_to_expiry)}
               </span>
             ) : (
-              formatDays(row.days_to_expiry, locale)
+              fmt.days(row.days_to_expiry)
             )}
           </Badge>
         </div>
@@ -125,7 +120,7 @@ export default function BatchesPage() {
       key: "remaining",
       header: t.inventory.quantityRemaining,
       numeric: true,
-      render: (row) => formatQuantity(row.quantity_remaining),
+      render: (row) => fmt.quantity(row.quantity_remaining),
     },
     {
       key: "available",
@@ -133,7 +128,7 @@ export default function BatchesPage() {
       numeric: true,
       render: (row) => (
         <span className="font-medium">
-          {formatQuantity(row.quantity_available)}
+          {fmt.quantity(row.quantity_available)}
         </span>
       ),
     },
@@ -141,7 +136,7 @@ export default function BatchesPage() {
       key: "value",
       header: t.inventory.stockValue,
       numeric: true,
-      render: (row) => formatMoney(row.stock_value),
+      render: (row) => fmt.money(row.stock_value),
     },
     {
       key: "status",
@@ -202,7 +197,7 @@ export default function BatchesPage() {
               <option value="">{t.common.all}</option>
               {[30, 90, 180].map((days) => (
                 <option key={days} value={days}>
-                  {`${t.inventory.expiringSoon} : ${formatDays(days, locale)}`}
+                  {`${t.inventory.expiringSoon} : ${fmt.days(days)}`}
                 </option>
               ))}
             </Select>

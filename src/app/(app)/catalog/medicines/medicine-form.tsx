@@ -22,10 +22,10 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { Medicine } from "@/lib/api/types";
-import { formatMoney, priceExclVat } from "@/lib/format";
+import { priceExclVat } from "@/lib/format";
 import { scrollToFirstError, translateError } from "@/lib/hooks";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /**
  * Messages live in the schema so that both client-side failures and mapped
@@ -78,6 +78,7 @@ type FormValues = z.infer<ReturnType<typeof buildSchema>>;
  */
 export function MedicineForm({ medicine }: { medicine?: Medicine }) {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const [error, setError] = useState<ApiError | null>(null);
   const isEdit = Boolean(medicine);
@@ -366,7 +367,7 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
                 // VAT-inclusive price, without needing to trust the label.
                 hint={
                   sellingPriceNet
-                    ? `${t.catalog.priceExclVat}: ${formatMoney(sellingPriceNet, { decimals: 2 })}`
+                    ? `${t.catalog.priceExclVat}: ${fmt.money(sellingPriceNet, { decimals: 2 })}`
                     : undefined
                 }
                 required
@@ -391,7 +392,7 @@ export function MedicineForm({ medicine }: { medicine?: Medicine }) {
               label={`${t.catalog.wholesalePrice} (BIF)`}
               hint={
                 wholesalePriceNet
-                  ? `${t.catalog.priceExclVat}: ${formatMoney(wholesalePriceNet, { decimals: 2 })}`
+                  ? `${t.catalog.priceExclVat}: ${fmt.money(wholesalePriceNet, { decimals: 2 })}`
                   : undefined
               }
             >

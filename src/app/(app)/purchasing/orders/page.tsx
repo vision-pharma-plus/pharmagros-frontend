@@ -8,15 +8,16 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, Select, statusVariant } from "@/components/ui/primitives";
 import type { PurchaseOrderListItem } from "@/lib/api/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 const RECEIVABLE = new Set(["APPROVED", "SENT", "PARTIALLY_RECEIVED"]);
 
 export default function PurchaseOrdersPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
@@ -71,7 +72,7 @@ export default function PurchaseOrdersPage() {
       key: "total",
       header: t.common.total,
       numeric: true,
-      render: (row) => formatMoney(row.total_amount),
+      render: (row) => fmt.money(row.total_amount),
     },
     {
       key: "progress",

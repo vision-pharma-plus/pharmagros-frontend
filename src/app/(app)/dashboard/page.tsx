@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -31,6 +32,8 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Field,
+  Input,
   Skeleton,
   TBody,
   TD,
@@ -41,15 +44,9 @@ import {
 } from "@/components/ui/primitives";
 import { ChartSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 import type { DashboardKPIs, DashboardWidgets } from "@/lib/api/types";
-import {
-  formatDate,
-  formatDays,
-  formatMoney,
-  formatMoneyCompact,
-  formatQuantity,
-} from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 /**
@@ -128,11 +125,82 @@ function KpiTile({
   );
 }
 
+/** Local yyyy-MM-dd. `toISOString` would shift the date across the UTC line. */
+function isoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+type PresetKey = "today" | "month" | "last30" | "year";
+
+/**
+ * The ranges people actually ask for, resolved against the browser's clock.
+ *
+ * Kept as functions rather than constants so a dashboard left open overnight
+ * does not keep filtering to yesterday.
+ */
+const PRESETS: Record<PresetKey, () => { from: string; to: string }> = {
+  today: () => {
+    const now = new Date();
+    return { from: isoDate(now), to: isoDate(now) };
+  },
+  month: () => {
+    const now = new Date();
+    return {
+      from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      to: isoDate(now),
+    };
+  },
+  last30: () => {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - 29);
+    return { from: isoDate(start), to: isoDate(now) };
+  },
+  year: () => {
+    const now = new Date();
+    return {
+      from: isoDate(new Date(now.getFullYear(), 0, 1)),
+      to: isoDate(now),
+    };
+  },
+};
+
 export default function DashboardPage() {
   const t = useTranslation();
-  const { locale } = useLocale();
+  // Locale-bound formatters, so every figure on this page follows the active
+  // language without each call site having to remember to pass it.
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
+
+  // Empty means "no filter": the API then applies its own defaults (today for
+  // the daily tile, month-to-date for the monthly one) and the tiles keep
+  // their original labels.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const applyPreset = (key: PresetKey) => {
+    const { from, to } = PRESETS[key]();
+    setDateFrom(from);
+    setDateTo(to);
+  };
+
+  const clearPeriod = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  /** Which preset, if any, the current range corresponds to. */
+  const activePreset = (["today", "month", "last30", "year"] as PresetKey[]).find(
+    (key) => {
+      const { from, to } = PRESETS[key]();
+      return dateFrom === from && dateTo === to;
+    },
+  );
+
+  const hasPeriod = Boolean(dateFrom || dateTo);
 
   /**
    * A destination, or undefined when the user cannot open it.
@@ -144,9 +212,17 @@ export default function DashboardPage() {
   const drill = (permission: string, href: string) =>
     can(permission) ? href : undefined;
 
-  const kpis = useQuery<DashboardKPIs>("/reporting/dashboard/");
+  // Both queries take the same window, so the chart and the top-N tables
+  // below the tiles always cover the period the tiles report.
+  const range = {
+    date_from: dateFrom || undefined,
+    date_to: dateTo || undefined,
+  };
+
+  const kpis = useQuery<DashboardKPIs>("/reporting/dashboard/", range);
   const widgets = useQuery<DashboardWidgets>("/reporting/dashboard/widgets/", {
     days: 30,
+    ...range,
   });
 
   const error = translateError(kpis.error, t);
@@ -175,6 +251,67 @@ export default function DashboardPage() {
         )}
       </div>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t.dashboard.period}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["today", t.dashboard.periodToday],
+                ["month", t.dashboard.periodThisMonth],
+                ["last30", t.dashboard.periodLast30],
+                ["year", t.dashboard.periodThisYear],
+              ] as [PresetKey, string][]
+            ).map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={activePreset === key ? "default" : "outline"}
+                onClick={() => applyPreset(key)}
+                aria-pressed={activePreset === key}
+              >
+                {label}
+              </Button>
+            ))}
+            {hasPeriod && (
+              <Button size="sm" variant="ghost" onClick={clearPeriod}>
+                {t.dashboard.resetPeriod}
+              </Button>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
+            <Field label={t.dashboard.periodFrom}>
+              <Input
+                type="date"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </Field>
+            <Field label={t.dashboard.periodTo}>
+              <Input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </Field>
+          </div>
+
+          {/* Said once, here, rather than on each position tile: the filter
+              moves the sales figures but not stock or receivables, and a user
+              who does not know that will read the unchanged tiles as a bug. */}
+          {hasPeriod && (
+            <p className="text-xs text-muted-foreground">
+              {t.dashboard.positionsAsOfNow}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {kpis.loading || !data ? (
         // Nine tiles is what every user sees; the valuation and margin tiles
         // are permission-gated, so this is the count that avoids a jump for
@@ -192,7 +329,7 @@ export default function DashboardPage() {
             {data.inventory.total_value !== undefined && (
               <KpiTile
                 label={t.dashboard.inventoryValue}
-                value={formatMoneyCompact(data.inventory.total_value, locale)}
+                value={fmt.moneyCompact(data.inventory.total_value)}
                 icon={Coins}
                 tone="success"
                 href={drill("inventory.view_stock", "/inventory/stock")}
@@ -238,7 +375,7 @@ export default function DashboardPage() {
               value={String(data.inventory.expiring_90_days)}
               icon={CalendarClock}
               tone={data.inventory.expiring_90_days > 0 ? "warning" : "default"}
-              hint={formatDays(90, locale)}
+              hint={fmt.days(90)}
               // The horizon must match the tile's own 90 days, or the report
               // opens on a different count than the one just clicked.
               href={drill(
@@ -261,17 +398,26 @@ export default function DashboardPage() {
               )}
               drillLabel={t.nav.batches}
             />
+            {/* Without a filter these are two different windows — today and
+                the month to date. With one they would be the same figure
+                twice, so the daily tile drops out rather than repeating it. */}
+            {!data.sales.is_filtered && (
+              <KpiTile
+                label={t.dashboard.dailySales}
+                value={fmt.moneyCompact(data.sales.daily_revenue)}
+                icon={TrendingUp}
+                hint={`${data.sales.daily_transactions} ${t.dashboard.transactions}`}
+                href={drill("sales.view_sale", "/sales")}
+                drillLabel={t.nav.salesList}
+              />
+            )}
             <KpiTile
-              label={t.dashboard.dailySales}
-              value={formatMoneyCompact(data.sales.daily_revenue, locale)}
-              icon={TrendingUp}
-              hint={`${data.sales.daily_transactions} ${t.dashboard.transactions}`}
-              href={drill("sales.view_sale", "/sales")}
-              drillLabel={t.nav.salesList}
-            />
-            <KpiTile
-              label={t.dashboard.monthlySales}
-              value={formatMoneyCompact(data.sales.monthly_revenue, locale)}
+              label={
+                data.sales.is_filtered
+                  ? t.dashboard.salesForPeriod
+                  : t.dashboard.monthlySales
+              }
+              value={fmt.moneyCompact(data.sales.monthly_revenue)}
               icon={TrendingUp}
               hint={`${data.sales.monthly_transactions} ${t.dashboard.transactions}`}
               href={drill("sales.view_sale", "/sales")}
@@ -279,10 +425,7 @@ export default function DashboardPage() {
             />
             <KpiTile
               label={t.dashboard.outstandingInvoices}
-              value={formatMoneyCompact(
-                data.receivables.outstanding_total,
-                locale,
-              )}
+              value={fmt.moneyCompact(data.receivables.outstanding_total)}
               icon={Receipt}
               hint={`${data.receivables.outstanding_count} ${t.nav.invoices.toLowerCase()}`}
               href={drill(
@@ -293,7 +436,7 @@ export default function DashboardPage() {
             />
             <KpiTile
               label={t.dashboard.overdueInvoices}
-              value={formatMoneyCompact(data.receivables.overdue_total, locale)}
+              value={fmt.moneyCompact(data.receivables.overdue_total)}
               icon={AlertTriangle}
               tone={
                 data.receivables.overdue_count > 0 ? "destructive" : "default"
@@ -308,8 +451,12 @@ export default function DashboardPage() {
             {/* Margin appears only for users holding sales.view_margin. */}
             {data.sales.monthly_margin !== undefined && (
               <KpiTile
-                label={t.dashboard.monthlyMargin}
-                value={formatMoneyCompact(data.sales.monthly_margin, locale)}
+                label={
+                  data.sales.is_filtered
+                    ? t.dashboard.marginForPeriod
+                    : t.dashboard.monthlyMargin
+                }
+                value={fmt.moneyCompact(data.sales.monthly_margin)}
                 icon={Coins}
                 tone="success"
                 href={drill("sales.view_sale", "/sales")}
@@ -357,13 +504,13 @@ export default function DashboardPage() {
                         axisLine={false}
                         width={72}
                         tickFormatter={(value: number) =>
-                          formatMoneyCompact(String(value), locale, {
+                          fmt.moneyCompact(String(value), {
                             showCurrency: false,
                           })
                         }
                       />
                       <Tooltip
-                        formatter={(value: number) => formatMoney(String(value))}
+                        formatter={(value: number) => fmt.money(String(value))}
                         contentStyle={{
                           borderRadius: 8,
                           border: "1px solid hsl(var(--border))",
@@ -441,7 +588,7 @@ export default function DashboardPage() {
                                 {customer.customer_code}
                               </span>
                             </TD>
-                            <TD numeric>{formatMoney(customer.revenue)}</TD>
+                            <TD numeric>{fmt.money(customer.revenue)}</TD>
                           </TR>
                         );
                       })}
@@ -504,9 +651,9 @@ export default function DashboardPage() {
                               <span className="font-medium">{product.name}</span>
                             </TD>
                             <TD numeric>
-                              {formatQuantity(product.quantity_sold)}
+                              {fmt.quantity(product.quantity_sold)}
                             </TD>
-                            <TD numeric>{formatMoney(product.revenue)}</TD>
+                            <TD numeric>{fmt.money(product.revenue)}</TD>
                           </TR>
                         );
                       })}

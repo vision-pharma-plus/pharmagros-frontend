@@ -38,14 +38,9 @@ import {
 } from "@/components/ui/skeletons";
 import { ApiError, api } from "@/lib/api/client";
 import type { Customer, CustomerStatement } from "@/lib/api/types";
-import {
-  formatDate,
-  formatDays,
-  formatMoney,
-  formatPercent,
-} from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -61,7 +56,7 @@ type DialogMode = "credit-limit" | "block" | "unblock" | null;
 
 export default function CustomerDetailPage() {
   const t = useTranslation();
-  const { locale } = useLocale();
+  const fmt = useFormat();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const can = useAuth((state) => state.can);
@@ -241,27 +236,27 @@ export default function CustomerDetailPage() {
           <CardContent className="divide-y divide-border">
             <DetailRow
               label={t.partners.creditLimit}
-              value={formatMoney(item.credit_limit)}
+              value={fmt.money(item.credit_limit)}
             />
             <DetailRow
               label={t.partners.outstandingBalance}
               value={
                 <span className={item.is_over_limit ? "text-destructive" : ""}>
-                  {formatMoney(item.outstanding_balance)}
+                  {fmt.money(item.outstanding_balance)}
                 </span>
               }
             />
             <DetailRow
               label={t.partners.availableCredit}
-              value={formatMoney(item.available_credit)}
+              value={fmt.money(item.available_credit)}
             />
             <DetailRow
               label={t.partners.creditUtilisation}
-              value={formatPercent(item.credit_utilisation)}
+              value={fmt.percent(item.credit_utilisation)}
             />
             <DetailRow
               label={t.invoicing.paymentTerms}
-              value={formatDays(item.payment_term_days, locale)}
+              value={fmt.days(item.payment_term_days)}
             />
           </CardContent>
         </Card>
@@ -334,17 +329,17 @@ export default function CustomerDetailPage() {
                       </TD>
                       <TD numeric>
                         {line.debit && Number(line.debit) > 0
-                          ? formatMoney(line.debit)
+                          ? fmt.money(line.debit)
                           : "—"}
                       </TD>
                       <TD numeric>
                         {line.credit && Number(line.credit) > 0
-                          ? formatMoney(line.credit)
+                          ? fmt.money(line.credit)
                           : "—"}
                       </TD>
                       <TD numeric>
                         <span className="font-medium">
-                          {formatMoney(line.balance)}
+                          {fmt.money(line.balance)}
                         </span>
                       </TD>
                     </TR>
@@ -357,7 +352,7 @@ export default function CustomerDetailPage() {
                     {t.invoicing.balanceDue}:{" "}
                   </span>
                   <span className="font-semibold tabular-nums">
-                    {formatMoney(statement.data.closing_balance)}
+                    {fmt.money(statement.data.closing_balance)}
                   </span>
                 </div>
               </div>

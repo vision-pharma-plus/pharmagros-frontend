@@ -41,15 +41,16 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, printBlob, saveBlob } from "@/lib/api/client";
 import type { Invoice } from "@/lib/api/types";
-import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 import { CreditNoteDialog } from "./credit-note-dialog";
 
 export default function InvoiceDetailPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const { locale } = useLocale();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -60,6 +61,9 @@ export default function InvoiceDetailPage() {
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [declaring, setDeclaring] = useState(false);
+  const [receiptBusy, setReceiptBusy] = useState<
+    "download" | "print" | "email" | null
+  >(null);
   const [payOpen, setPayOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -116,6 +120,44 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  /**
+   * The three things a customer may ask for once they have paid.
+   *
+   * The receipt is a separate document from the invoice with its own print
+   * counter, so these hit the receipt endpoint rather than reusing the invoice
+   * one — printing an invoice is not evidence that a receipt was issued.
+   */
+  const receiptAction = async (action: "download" | "print" | "email") => {
+    const receipt = invoice.data?.payment_receipt_id;
+    const number = invoice.data?.payment_receipt_number ?? "";
+    if (!receipt) return;
+
+    setReceiptBusy(action);
+    try {
+      if (action === "email") {
+        await api.post(`/invoicing/receipts/${receipt}/email/`);
+        toast.success(t.toasts.invoiceEmailQueued, number);
+      } else {
+        const blob = await api.download(`/invoicing/receipts/${receipt}/pdf/`, {
+          language: locale,
+        });
+        if (action === "print") {
+          printBlob(blob);
+          toast.success(t.toasts.invoiceSentToPrinter, number);
+        } else {
+          saveBlob(blob, `${number}.pdf`);
+        }
+      }
+    } catch (caught) {
+      toast.error(
+        action === "email" ? t.toasts.emailFailed : t.toasts.pdfFailed,
+        caught instanceof ApiError ? translateError(caught, t) : undefined,
+      );
+    } finally {
+      setReceiptBusy(null);
+    }
+  };
+
   const declareToObr = async () => {
     setDeclaring(true);
     try {
@@ -148,7 +190,7 @@ export default function InvoiceDetailPage() {
         invoice_ids: [invoice.data.id],
       });
       setPayOpen(false);
-      toast.success(t.toasts.paymentRecorded, formatMoney(amount));
+      toast.success(t.toasts.paymentRecorded, fmt.money(amount));
       invoice.refetch();
     } catch (caught) {
       setError(
@@ -308,6 +350,51 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
+      {/* Raised automatically when the balance reached zero. Surfaced here
+          because this is the page someone is on when the customer asks for
+          proof of payment — sending them to a separate receipts list to find
+          the document for the invoice already on screen is busywork. */}
+      {item.payment_receipt_id && (
+        <Alert
+          variant={item.payment_receipt_number ? "success" : "default"}
+          title={`${t.invoicing.paymentReceipt} ${item.payment_receipt_number ?? ""}`}
+          className="no-print"
+        >
+          <p className="mb-3">{t.invoicing.paymentReceiptIssued}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              loading={receiptBusy === "download"}
+              onClick={() => void receiptAction("download")}
+            >
+              <Download className="h-4 w-4" />
+              {t.invoicing.downloadReceipt}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              loading={receiptBusy === "print"}
+              onClick={() => void receiptAction("print")}
+            >
+              <Printer className="h-4 w-4" />
+              {t.invoicing.printReceipt}
+            </Button>
+            {can("invoicing.record_payment") && (
+              <Button
+                size="sm"
+                variant="outline"
+                loading={receiptBusy === "email"}
+                onClick={() => void receiptAction("email")}
+              >
+                <Send className="h-4 w-4" />
+                {t.invoicing.emailReceipt}
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
+
       {/* On a credit note, the invoice it corrects is the first thing anyone
           opening it needs, so it is a link rather than a bare number. */}
       {item.original_invoice && (
@@ -417,7 +504,7 @@ export default function InvoiceDetailPage() {
               {t.invoicing.totalAmount}
             </p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
-              {formatMoney(item.total_amount)}
+              {fmt.money(item.total_amount)}
             </p>
           </CardContent>
         </Card>
@@ -431,7 +518,7 @@ export default function InvoiceDetailPage() {
                 hasBalance ? "text-destructive" : "text-success"
               }`}
             >
-              {formatMoney(item.balance_due)}
+              {fmt.money(item.balance_due)}
             </p>
             {/* Red vs green was the only cue that an invoice was settled, and
                 it could not distinguish money received from a debt cancelled
@@ -460,7 +547,7 @@ export default function InvoiceDetailPage() {
                 {t.invoicing.paymentProgress}
               </p>
               <p className="text-sm text-muted-foreground tabular-nums">
-                {formatMoney(item.paid_amount)} / {formatMoney(item.total_amount)}
+                {fmt.money(item.paid_amount)} / {fmt.money(item.total_amount)}
                 <span className="ml-2 font-medium text-foreground">
                   {progressPercent.toFixed(0)} %
                 </span>
@@ -480,7 +567,7 @@ export default function InvoiceDetailPage() {
               />
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {t.invoicing.remainingToPay}: {formatMoney(item.balance_due)}
+              {t.invoicing.remainingToPay}: {fmt.money(item.balance_due)}
             </p>
           </CardContent>
         </Card>
@@ -519,9 +606,9 @@ export default function InvoiceDetailPage() {
                     )}
                   </TD>
                   <TD numeric>
-                    {formatQuantity(line.quantity, line.unit_of_measure)}
+                    {fmt.quantity(line.quantity, line.unit_of_measure)}
                   </TD>
-                  <TD numeric>{formatMoney(line.unit_price)}</TD>
+                  <TD numeric>{fmt.money(line.unit_price)}</TD>
                   <TD numeric>
                     {Number(line.discount_percent) > 0
                       ? `${Number(line.discount_percent).toFixed(2)} %`
@@ -534,7 +621,7 @@ export default function InvoiceDetailPage() {
                   </TD>
                   <TD numeric>
                     <span className="font-medium">
-                      {formatMoney(line.line_total)}
+                      {fmt.money(line.line_total)}
                     </span>
                   </TD>
                 </TR>
@@ -545,31 +632,31 @@ export default function InvoiceDetailPage() {
           <div className="ml-auto mt-4 max-w-sm space-y-2 px-6 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t.common.subtotal}</span>
-              <span className="tabular-nums">{formatMoney(item.subtotal)}</span>
+              <span className="tabular-nums">{fmt.money(item.subtotal)}</span>
             </div>
             {Number(item.discount_amount) > 0 && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t.sales.discount}</span>
                 <span className="tabular-nums">
-                  − {formatMoney(item.discount_amount)}
+                  − {fmt.money(item.discount_amount)}
                 </span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t.sales.tax}</span>
-              <span className="tabular-nums">{formatMoney(item.tax_amount)}</span>
+              <span className="tabular-nums">{fmt.money(item.tax_amount)}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
               <span>{t.common.total}</span>
               <span className="tabular-nums">
-                {formatMoney(item.total_amount)}
+                {fmt.money(item.total_amount)}
               </span>
             </div>
             {Number(item.paid_amount) > 0 && (
               <div className="flex justify-between text-success">
                 <span>{t.invoicing.paidAmount}</span>
                 <span className="tabular-nums">
-                  − {formatMoney(item.paid_amount)}
+                  − {fmt.money(item.paid_amount)}
                 </span>
               </div>
             )}
@@ -643,7 +730,7 @@ export default function InvoiceDetailPage() {
                       <TD className="text-muted-foreground">
                         {allocation.received_by_name || "—"}
                       </TD>
-                      <TD numeric>{formatMoney(allocation.amount)}</TD>
+                      <TD numeric>{fmt.money(allocation.amount)}</TD>
                     </TR>
                   ))}
                 </TBody>
@@ -700,7 +787,7 @@ export default function InvoiceDetailPage() {
                         </p>
                       )}
                     </TD>
-                    <TD numeric>− {formatMoney(note.total_amount)}</TD>
+                    <TD numeric>− {fmt.money(note.total_amount)}</TD>
                   </TR>
                 ))}
               </TBody>

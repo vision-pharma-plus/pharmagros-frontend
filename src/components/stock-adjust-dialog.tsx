@@ -16,9 +16,9 @@ import { Alert, Field, Input, Textarea } from "@/components/ui/primitives";
 import { toast } from "@/components/ui/toast";
 import { ApiError, api } from "@/lib/api/client";
 import type { StockBatch } from "@/lib/api/types";
-import { formatQuantity, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import { translateError } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /**
  * Stocktake adjustment.
@@ -40,6 +40,7 @@ export function StockAdjustDialog({
   onAdjusted: () => void;
 }) {
   const t = useTranslation();
+  const fmt = useFormat();
   const [countedQuantity, setCountedQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
@@ -86,7 +87,7 @@ export function StockAdjustDialog({
       });
       toast.success(
         noDiscrepancy ? t.inventory.noDiscrepancies : t.toasts.stockAdjusted,
-        `${batch.product_name} · ${formatQuantity(countedQuantity)}`,
+        `${batch.product_name} · ${fmt.quantity(countedQuantity)}`,
       );
       reset();
       onOpenChange(false);
@@ -128,7 +129,7 @@ export function StockAdjustDialog({
                   {t.inventory.quantityRemaining}
                 </span>
                 <span className="font-medium tabular-nums">
-                  {formatQuantity(batch.quantity_remaining)}
+                  {fmt.quantity(batch.quantity_remaining)}
                 </span>
               </div>
             </div>
@@ -161,7 +162,7 @@ export function StockAdjustDialog({
               >
                 <span className="font-medium tabular-nums">
                   {money.isNegative(delta) ? "" : "+"}
-                  {formatQuantity(delta)}
+                  {fmt.quantity(delta)}
                 </span>
               </div>
             ))}

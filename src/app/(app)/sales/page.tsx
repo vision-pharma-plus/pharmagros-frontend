@@ -7,13 +7,14 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, Select, statusVariant } from "@/components/ui/primitives";
 import type { SaleListItem } from "@/lib/api/types";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 export default function SalesPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
   // Filters live in the URL so a filtered view survives a refresh and can be
@@ -79,7 +80,7 @@ export default function SalesPage() {
       key: "total",
       header: t.common.total,
       numeric: true,
-      render: (row) => formatMoney(row.total_amount),
+      render: (row) => fmt.money(row.total_amount),
     },
     {
       key: "status",

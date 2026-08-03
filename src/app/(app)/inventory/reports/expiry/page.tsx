@@ -6,14 +6,9 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Badge, Select } from "@/components/ui/primitives";
 import type { Paginated } from "@/lib/api/client";
 import type { StockBatch, Warehouse } from "@/lib/api/types";
-import {
-  formatDate,
-  formatDays,
-  formatMoney,
-  formatQuantity,
-} from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { usePaginatedQuery, useQuery, useUrlFilters } from "@/lib/hooks";
-import { useLocale, useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 
 /** Horizons the expiry scan alerts on, mirrored from the backend task. */
 const HORIZONS = [30, 90, 180, 365] as const;
@@ -30,7 +25,7 @@ const DEFAULT_HORIZON = "90";
  */
 export default function ExpiryReportPage() {
   const t = useTranslation();
-  const { locale } = useLocale();
+  const fmt = useFormat();
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     horizon: DEFAULT_HORIZON,
     warehouse: "",
@@ -70,10 +65,10 @@ export default function ExpiryReportPage() {
             {row.days_to_expiry <= 30 ? (
               <span className="flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
-                {formatDays(row.days_to_expiry, locale)}
+                {fmt.days(row.days_to_expiry)}
               </span>
             ) : (
-              formatDays(row.days_to_expiry, locale)
+              fmt.days(row.days_to_expiry)
             )}
           </Badge>
         </div>
@@ -109,14 +104,14 @@ export default function ExpiryReportPage() {
       key: "remaining",
       header: t.inventory.quantityRemaining,
       numeric: true,
-      render: (row) => formatQuantity(row.quantity_remaining),
+      render: (row) => fmt.quantity(row.quantity_remaining),
     },
     {
       key: "value",
       header: t.reports.valueAtRisk,
       numeric: true,
       render: (row) => (
-        <span className="font-medium">{formatMoney(row.stock_value)}</span>
+        <span className="font-medium">{fmt.money(row.stock_value)}</span>
       ),
     },
   ];
@@ -135,7 +130,7 @@ export default function ExpiryReportPage() {
             {t.reports.valueAtRisk}
           </p>
           <p className="text-xl font-semibold tabular-nums">
-            {formatMoney(String(valueAtRisk))}
+            {fmt.money(String(valueAtRisk))}
           </p>
         </div>
       </div>
@@ -163,7 +158,7 @@ export default function ExpiryReportPage() {
             >
               {HORIZONS.map((days) => (
                 <option key={days} value={days}>
-                  {`${t.inventory.expiringSoon} : ${formatDays(days, locale)}`}
+                  {`${t.inventory.expiringSoon} : ${fmt.days(days)}`}
                 </option>
               ))}
             </Select>

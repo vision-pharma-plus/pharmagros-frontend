@@ -8,15 +8,15 @@ import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge, statusVariant } from "@/components/ui/primitives";
 import type { MedicineListItem } from "@/lib/api/types";
-import { formatMoney } from "@/lib/format";
 import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useFormat, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 import { ImportDialog } from "./import-dialog";
 
 export default function MedicinesPage() {
   const t = useTranslation();
+  const fmt = useFormat();
   const router = useRouter();
   const can = useAuth((state) => state.can);
   const [importOpen, setImportOpen] = useState(false);
@@ -73,7 +73,7 @@ export default function MedicinesPage() {
       key: "price",
       header: t.catalog.sellingPrice,
       numeric: true,
-      render: (row) => formatMoney(row.selling_price),
+      render: (row) => fmt.money(row.selling_price),
     },
     {
       key: "status",
