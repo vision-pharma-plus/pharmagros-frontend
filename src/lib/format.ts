@@ -10,22 +10,36 @@
 
 import Decimal from "decimal.js";
 
-import type { Locale } from "./i18n/dictionaries";
+import { DEFAULT_LOCALE, type Locale } from "./i18n/dictionaries";
 
 // Rounding must match the backend: half away from zero, per OHADA practice.
 Decimal.set({ rounding: Decimal.ROUND_HALF_UP, precision: 28 });
 
-/**
- * U+202F narrow no-break space — the French thousands separator.
- *
- * Named rather than written as a literal because the character is invisible in
- * source: the grouping separator here had silently been an ordinary space,
- * which let amounts break across lines mid-number.
- */
-const NARROW_NBSP = " ";
-
 /** U+00A0 no-break space, used between the amount and the currency code. */
 const NBSP = " ";
+
+/**
+ * Thousands separator for on-screen amounts, by locale.
+ *
+ * U+202F is the typographically correct French/Burundian separator and is what
+ * the PDF templates use, but on screen it is effectively invisible: at UI font
+ * sizes "2 400 BIF" reads as "240 BIF". That is not a cosmetic complaint — an
+ * operator who reads a 2 400 total as 240 tenders 300, gets a disabled Confirm
+ * button, and has no way to see why. A displayed amount that the reader
+ * resolves to the wrong number is a wrong amount.
+ *
+ * French keeps a space so the grouping convention survives, but a regular one
+ * that is actually visible; the no-break property is preserved by the CSS
+ * `white-space` on the amount rather than by the character. English uses the
+ * comma its readers expect.
+ *
+ * The PDF templates in backend/templates/pdf/ format money independently and
+ * are deliberately untouched, so printed documents keep U+202F.
+ */
+const GROUP_SEPARATOR: Record<Locale, string> = {
+  fr: " ",
+  en: ",",
+};
 
 /**
  * Format a BIF amount for display.
@@ -37,9 +51,9 @@ const NBSP = " ";
  */
 export function formatMoney(
   value: string | number | null | undefined,
-  options: { showCurrency?: boolean; decimals?: number } = {},
+  options: { showCurrency?: boolean; decimals?: number; locale?: Locale } = {},
 ): string {
-  const { showCurrency = true, decimals = 0 } = options;
+  const { showCurrency = true, decimals = 0, locale = DEFAULT_LOCALE } = options;
 
   if (value === null || value === undefined || value === "") {
     return showCurrency ? "— BIF" : "—";
@@ -56,8 +70,12 @@ export function formatMoney(
   const rounded = amount.abs().toFixed(decimals);
   const [whole = "0", fraction] = rounded.split(".");
 
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, NARROW_NBSP);
-  const body = fraction ? `${grouped},${fraction}` : grouped;
+  const grouped = whole.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    GROUP_SEPARATOR[locale],
+  );
+  const decimalSeparator = locale === "fr" ? "," : ".";
+  const body = fraction ? `${grouped}${decimalSeparator}${fraction}` : grouped;
 
   const sign = negative ? "−" : ""; // true minus sign, not hyphen
   return showCurrency ? `${sign}${body}${NBSP}BIF` : `${sign}${body}`;
@@ -122,7 +140,9 @@ export function formatQuantity(
     .toFixed(3)
     .replace(/\.?0+$/, "")
     .replace(".", ",");
-  const grouped = text.replace(/\B(?=(\d{3})+(?!\d))/g, NARROW_NBSP);
+  // Same visibility problem as formatMoney: a U+202F between the digits makes
+  // 2 400 tablets read as 240 on screen.
+  const grouped = text.replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEPARATOR.fr);
   return unit ? `${grouped} ${unit}` : grouped;
 }
 
@@ -189,16 +209,43 @@ export function formatRelativeDays(days: number, locale: Locale): string {
   return days > 0 ? `in ${days} days` : `${Math.abs(days)} days ago`;
 }
 
+/**
+ * Coerce anything that reaches the arithmetic helpers into a usable Decimal.
+ *
+ * `new Decimal(x)` *throws* on undefined, null, "" and on partial numeric text
+ * — and "partial" is the normal state of an `<input type="number">` mid-typing:
+ * a lone "-", ".", or "1e" all arrive here as the user works towards a real
+ * figure. It also covers an API field that a create response omits where the
+ * list response includes it.
+ *
+ * Every one of those used to throw out of a render pass with no error boundary
+ * above it, which is what blanked the screen after an otherwise successful
+ * save. Treating an unreadable value as zero matches what `formatMoney` and
+ * `formatQuantity` already do, so a half-typed amount now previews as 0 and
+ * corrects itself on the next keystroke instead of taking the page down.
+ *
+ * This is display and preview math only — the server stays authoritative for
+ * every stored amount, and it validates the submitted payload independently.
+ */
+function toDecimal(value: string | number | null | undefined): Decimal {
+  if (value === null || value === undefined || value === "") return new Decimal(0);
+  try {
+    return new Decimal(value);
+  } catch {
+    return new Decimal(0);
+  }
+}
+
 /** Safe decimal arithmetic for client-side line totals. */
 export const money = {
-  add: (a: string, b: string) => new Decimal(a).plus(b).toFixed(4),
-  subtract: (a: string, b: string) => new Decimal(a).minus(b).toFixed(4),
-  multiply: (a: string, b: string) => new Decimal(a).times(b).toFixed(4),
+  add: (a: string, b: string) => toDecimal(a).plus(toDecimal(b)).toFixed(4),
+  subtract: (a: string, b: string) => toDecimal(a).minus(toDecimal(b)).toFixed(4),
+  multiply: (a: string, b: string) => toDecimal(a).times(toDecimal(b)).toFixed(4),
   percentOf: (base: string, percent: string) =>
-    new Decimal(base).times(percent).dividedBy(100).toFixed(4),
-  isZero: (a: string) => new Decimal(a || 0).isZero(),
-  isNegative: (a: string) => new Decimal(a || 0).isNegative(),
-  compare: (a: string, b: string) => new Decimal(a).comparedTo(b),
+    toDecimal(base).times(toDecimal(percent)).dividedBy(100).toFixed(4),
+  isZero: (a: string) => toDecimal(a).isZero(),
+  isNegative: (a: string) => toDecimal(a).isNegative(),
+  compare: (a: string, b: string) => toDecimal(a).comparedTo(toDecimal(b)),
 };
 
 /**
@@ -213,8 +260,8 @@ export const money = {
  * exempt and zero-rated products exact.
  */
 export function priceExclVat(priceInclVat: string, vatRate = "0"): string {
-  const rate = new Decimal(vatRate || 0);
-  const price = new Decimal(priceInclVat || 0);
+  const rate = toDecimal(vatRate);
+  const price = toDecimal(priceInclVat);
   if (rate.isZero()) {
     return price.toFixed(4);
   }
@@ -225,8 +272,8 @@ export function priceExclVat(priceInclVat: string, vatRate = "0"): string {
  * Add VAT back onto a net price. The inverse of `priceExclVat`.
  */
 export function priceInclVat(priceExclVatValue: string, vatRate = "0"): string {
-  const rate = new Decimal(vatRate || 0);
-  const price = new Decimal(priceExclVatValue || 0);
+  const rate = toDecimal(vatRate);
+  const price = toDecimal(priceExclVatValue);
   if (rate.isZero()) {
     return price.toFixed(4);
   }
@@ -257,10 +304,10 @@ export function computeLine(
   tax: string;
   total: string;
 } {
-  const gross = new Decimal(quantity || 0).times(unitPrice || 0);
-  const discount = gross.times(discountPercent || 0).dividedBy(100);
+  const gross = toDecimal(quantity).times(toDecimal(unitPrice));
+  const discount = gross.times(toDecimal(discountPercent)).dividedBy(100);
   const net = gross.minus(discount);
-  const tax = net.times(taxRate || 0).dividedBy(100);
+  const tax = net.times(toDecimal(taxRate)).dividedBy(100);
 
   return {
     gross: gross.toFixed(4),

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { ArrowLeft, Download, FileText, Printer } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -35,7 +35,7 @@ import {
   TableCardSkeleton,
 } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
-import { ApiError, api, saveBlob } from "@/lib/api/client";
+import { ApiError, api, printBlob, saveBlob } from "@/lib/api/client";
 import type { Invoice, SalesReceipt } from "@/lib/api/types";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
@@ -52,6 +52,10 @@ export default function ReceiptDetailPage() {
   const receipt = useQuery<SalesReceipt>(`/sales/receipts/${params.id}/`);
 
   const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
+
+  /** Governs both the download and the print: one PDF, one permission. */
+  const canPrint = can("sales.print_receipt");
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -75,6 +79,28 @@ export default function ReceiptDetailPage() {
       );
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const printPdf = async () => {
+    if (!receipt.data) return;
+    setPrinting(true);
+    try {
+      const blob = await api.download(`/sales/receipts/${params.id}/pdf/`, {
+        language: locale,
+      });
+      printBlob(blob);
+      toast.success(t.toasts.receiptSentToPrinter, receipt.data.receipt_number);
+      // Same reason as the download: the server counts this copy, so refetch
+      // to show the reprint that just happened.
+      receipt.refetch();
+    } catch (caught) {
+      toast.error(
+        t.toasts.printFailed,
+        caught instanceof ApiError ? translateError(caught, t) : undefined,
+      );
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -143,16 +169,30 @@ export default function ReceiptDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {can("sales.print_receipt") && (
-            <Button
-              variant="outline"
-              loading={downloading}
-              onClick={() => void downloadPdf()}
-            >
-              <Download className="h-4 w-4" />
-              {t.common.download}
-            </Button>
-          )}
+          {/* Both actions serve the same PDF under the same permission, so
+              they stand or fall together — disabled with the reason on hover
+              rather than hidden, so a missing permission does not read as a
+              missing feature. */}
+          <Button
+            variant="outline"
+            disabled={!canPrint}
+            loading={downloading}
+            title={canPrint ? undefined : t.permissions.printReceiptNotAllowed}
+            onClick={() => void downloadPdf()}
+          >
+            <Download className="h-4 w-4" />
+            {t.common.download}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!canPrint}
+            loading={printing}
+            title={canPrint ? undefined : t.permissions.printReceiptNotAllowed}
+            onClick={() => void printPdf()}
+          >
+            <Printer className="h-4 w-4" />
+            {t.common.print}
+          </Button>
           {/* Offered only when there is no invoice yet: a sale has exactly one,
               and raising a second is what the backend refuses outright. */}
           {can("sales.invoice_receipt") &&

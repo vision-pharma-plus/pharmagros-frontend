@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -116,11 +116,43 @@ export default function InvoicesPage() {
       key: "balance",
       header: t.invoicing.balanceDue,
       numeric: true,
-      render: (row) => (
-        <span className={row.is_overdue ? "font-semibold text-destructive" : undefined}>
-          {formatMoney(row.balance_due)}
-        </span>
-      ),
+      render: (row) => {
+        // Derived here rather than served: the list already carries both
+        // figures, and `payment_progress` is a detail-serializer field. A
+        // part-settled invoice is the only case the balance figure alone
+        // cannot convey, so the bar appears only for that case.
+        const total = Number(row.total_amount) || 0;
+        const paid = Number(row.paid_amount) || 0;
+        const isPartial = paid > 0 && Number(row.balance_due) > 0 && total > 0;
+
+        return (
+          <div className="space-y-1">
+            <span
+              className={
+                row.is_overdue ? "font-semibold text-destructive" : undefined
+              }
+            >
+              {formatMoney(row.balance_due)}
+            </span>
+            {isPartial && (
+              <div
+                className="ml-auto h-1 w-16 overflow-hidden rounded-full bg-muted"
+                // Decorative here: the adjacent figure already states the
+                // balance, and a per-row bar announced on every row would
+                // make the table tedious to hear.
+                aria-hidden
+              >
+                <div
+                  className="h-full rounded-full bg-success"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, (paid / total) * 100))}%`,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -161,9 +193,17 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">{t.nav.invoices}</h1>
-        <p className="text-sm text-muted-foreground">{t.nav.invoicing}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">{t.nav.invoices}</h1>
+          <p className="text-sm text-muted-foreground">{t.nav.invoicing}</p>
+        </div>
+        {can("invoicing.add_invoice") && (
+          <Button onClick={() => router.push("/invoicing/invoices/new")}>
+            <Plus className="h-4 w-4" />
+            {t.invoicing.newInvoice}
+          </Button>
+        )}
       </div>
 
       <DataTable

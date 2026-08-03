@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Printer, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import { ApiError, api } from "@/lib/api/client";
+import { ApiError, api, printBlob } from "@/lib/api/client";
 import type {
   CustomerListItem,
   MedicineListItem,
@@ -36,8 +36,8 @@ import type {
   Warehouse,
 } from "@/lib/api/types";
 import { computeLine, formatMoney, money, priceExclVat } from "@/lib/format";
-import { translateError, useQuery } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { translateError, translateErrorDetailed, useQuery } from "@/lib/hooks";
+import { useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface DraftLine {
@@ -62,6 +62,7 @@ const emptyLine = (): DraftLine => ({
 
 export default function NewSalePage() {
   const t = useTranslation();
+  const { locale } = useLocale();
   const router = useRouter();
   const can = useAuth((state) => state.can);
 
@@ -82,6 +83,12 @@ export default function NewSalePage() {
   const [error, setError] = useState<ApiError | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
+  const [overridePrint, setOverridePrint] = useState(false);
+  // Which of the two buttons is in flight, so only that one shows a spinner,
+  // and so the override dialog resumes the action the operator first chose.
+  const [pendingAction, setPendingAction] = useState<"confirm" | "print" | null>(
+    null,
+  );
 
   const warehouses = useQuery<{ results: Warehouse[] }>("/inventory/warehouses/");
   const warehouseList = warehouses.data?.results ?? [];
@@ -167,6 +174,49 @@ export default function NewSalePage() {
   const shortTender = changeDue !== null && money.compare(changeDue, "0") < 0;
 
   /**
+   * The customer cannot transact on credit at all — blocked, cash-only,
+   * inactive, or carrying no limit.
+   *
+   * Checked separately from headroom because the two are independent: a
+   * blocked account keeps whatever unused limit it had, so comparing the
+   * total against `available_credit` alone would show a comfortable balance
+   * and no warning, right up until the server refused the sale.
+   */
+  const creditIneligible =
+    saleType === "CREDIT" && customer !== null && !customer.is_credit_eligible;
+
+  /**
+   * Which of the four ineligibility causes applies, and how to clear it.
+   *
+   * Mirrors the precedence in `Customer.can_buy_on_credit` so the screen names
+   * the same refusal the server would return. Showing one generic message
+   * instead left the operator with a remedy that did not fit their case — a
+   * cash-only customer being told to lift a block that was never set.
+   *
+   * `credit_block_reason` is appended when present: the cause is "credit is
+   * blocked", the free-text reason is why it was blocked, and both matter.
+   */
+  const creditIneligibleDetail = (() => {
+    if (!creditIneligible || customer === null) return null;
+    if (customer.status !== "ACTIVE") return t.sales.creditIneligibleInactive;
+    if (customer.credit_blocked) {
+      const { reason, fix } = t.sales.creditIneligibleBlocked;
+      return {
+        reason: customer.credit_block_reason
+          ? `${reason} ${customer.credit_block_reason}`
+          : reason,
+        fix,
+      };
+    }
+    if (customer.payment_terms === "CASH") return t.sales.creditIneligibleCashOnly;
+    if (money.compare(customer.credit_limit, "0") <= 0)
+      return t.sales.creditIneligibleNoLimit;
+    // `is_credit_eligible` is false for a reason this screen does not model
+    // yet; the blocked wording is the safest generic fallback.
+    return t.sales.creditIneligibleBlocked;
+  })();
+
+  /**
    * Why the submit button is disabled, in the user's words.
    *
    * A dead button with no explanation is the most common way an operator gets
@@ -177,19 +227,73 @@ export default function NewSalePage() {
     customer === null && t.blockers.selectCustomer,
     resolvedWarehouseId === "" && t.blockers.selectWarehouse,
     validLines.length === 0 && t.blockers.addOneLine,
-    shortTender && t.blockers.tenderBelowTotal,
+    // A refusal no supervisor can override is better caught here than after
+    // the operator has priced up the whole basket and pressed confirm.
+    creditIneligibleDetail?.fix,
+    shortTender &&
+      t.blockers.tenderBelowTotal(
+        formatMoney(amountTendered, { locale }),
+        formatMoney(totals.total, { locale }),
+      ),
   ].filter((entry): entry is string => typeof entry === "string");
 
   const canSubmit = blockers.length === 0;
 
-  /** Warn before the server refuses, so the operator can act on it early. */
+  /**
+   * Warn before the server refuses, so the operator can act on it early.
+   *
+   * Only meaningful when credit is available in principle; otherwise the
+   * ineligibility notice above is the accurate thing to show.
+   */
   const creditWarning =
     saleType === "CREDIT" &&
     customer &&
+    customer.is_credit_eligible &&
     money.compare(totals.total, customer.available_credit) > 0;
 
-  const submit = async (creditOverrideReason?: string) => {
+  /**
+   * Everything that depends on which document closes this sale, in one place.
+   *
+   * The sale type decides the closing document, and with it which permission
+   * governs printing and how a refusal should read. Deriving both from one
+   * descriptor keeps them from drifting apart the way separate
+   * `saleType === "CASH"` ternaries eventually do — the receipt-only print
+   * gate that hid the button from invoice-printing users was exactly that
+   * kind of drift.
+   *
+   * The PDF route deliberately is not here: it is read off the confirm
+   * response instead, since the server is the authority on which document it
+   * actually issued.
+   */
+  const closingDocument =
+    saleType === "CASH"
+      ? {
+          permission: "sales.print_receipt",
+          deniedReason: t.permissions.printReceiptNotAllowed,
+        }
+      : {
+          permission: "invoicing.print_invoice",
+          deniedReason: t.permissions.printInvoiceNotAllowed,
+        };
+
+  /**
+   * Print is offered to everyone and disabled when it cannot be used, rather
+   * than hidden.
+   *
+   * A button that disappears is indistinguishable from one that is broken:
+   * the operator cannot tell a missing permission from a missing feature, and
+   * has nothing to hover to find out. The same reasoning already governs the
+   * discount field and the blockers list on this screen.
+   */
+  const printDenied = !can(closingDocument.permission);
+
+  const submit = async (
+    creditOverrideReason?: string,
+    options: { print?: boolean } = {},
+  ) => {
     if (!customer || !canSubmit) return;
+    const print = options.print ?? false;
+    setPendingAction(print ? "print" : "confirm");
     setSubmitting(true);
     setError(null);
 
@@ -233,6 +337,41 @@ export default function NewSalePage() {
         t.toasts.saleConfirmed,
         confirmed.receipt_number ?? confirmed.invoice_number ?? undefined,
       );
+
+      // Which document to print is read off the response, not assumed from
+      // the sale type: the server picks the closing document, so a sale that
+      // came back with a receipt prints the receipt whatever was requested.
+      // The descriptors carry the route and wording for each.
+      const printable = confirmed.receipt_id
+        ? {
+            path: `/sales/receipts/${confirmed.receipt_id}/pdf/`,
+            heading: t.toasts.receiptSentToPrinter,
+            number: confirmed.receipt_number,
+          }
+        : confirmed.invoice_id
+          ? {
+              path: `/invoicing/invoices/${confirmed.invoice_id}/pdf/`,
+              heading: t.toasts.invoiceSentToPrinter,
+              number: confirmed.invoice_number,
+            }
+          : null;
+
+      // The sale is committed by this point. A printer fault must therefore
+      // never read as a failed sale, so the print is reported on its own and
+      // the operator still lands on the document, where they can retry it.
+      if (print && printable) {
+        try {
+          const blob = await api.download(printable.path, { language: locale });
+          printBlob(blob);
+          toast.success(printable.heading, printable.number ?? undefined);
+        } catch (caught) {
+          toast.error(
+            t.toasts.printFailed,
+            caught instanceof ApiError ? translateError(caught, t) : undefined,
+          );
+        }
+      }
+
       // Land on the document the customer is actually waiting for: the receipt
       // for a cash sale, the invoice for a credit one.
       router.push(
@@ -248,22 +387,33 @@ export default function NewSalePage() {
           ? caught
           : new ApiError(0, { code: "unknown_error", message: String(caught) });
 
-      // A credit refusal is recoverable by an authorised supervisor, so it
-      // opens the override dialog rather than just reporting failure.
+      // Only a genuine limit breach is recoverable by an authorised
+      // supervisor, so only that opens the override dialog. A blocked,
+      // cash-only or inactive account is refused outright — offering an
+      // override there sends the operator to fetch a supervisor who cannot
+      // help, and the server would refuse the override anyway.
       if (
         apiError.code === "credit_limit_exceeded" &&
         can("sales.override_credit_limit") &&
         !creditOverrideReason
       ) {
+        // Remember whether the operator asked to print, so authorising the
+        // override resumes that same action rather than silently downgrading
+        // it to a plain confirm.
+        setOverridePrint(print);
         setOverrideOpen(true);
       }
       setError(apiError);
     } finally {
       setSubmitting(false);
+      setPendingAction(null);
     }
   };
 
-  const errorMessage = translateError(error, t);
+  // Detailed: a credit refusal carries the specific reason (which block, whose
+  // account, what the balance is) and the generic per-code sentence would
+  // discard exactly the part the operator needs to act on.
+  const errorMessage = translateErrorDetailed(error, t);
 
   return (
     <div className="space-y-5">
@@ -606,7 +756,12 @@ export default function NewSalePage() {
                 </div>
               )}
 
-              {customer && saleType === "CREDIT" && (
+              {/* The figure is shown only when it can actually be spent. A
+                  blocked or cash-only account keeps its unused limit, so
+                  printing it here advertised credit the server would refuse
+                  — the contradiction that made a 7 080 BIF sale look like it
+                  had breached a 1 000 000 BIF limit. */}
+              {customer && saleType === "CREDIT" && customer.is_credit_eligible && (
                 <div className="space-y-1 rounded-md bg-muted p-3 text-xs">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">
@@ -617,6 +772,24 @@ export default function NewSalePage() {
                     </span>
                   </div>
                 </div>
+              )}
+
+              {creditIneligibleDetail && (
+                <Alert variant="destructive">
+                  <span className="flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      <span className="font-medium">
+                        {t.sales.creditNotAvailable}
+                      </span>
+                      {/* The cause, always — a headline with no reason is what
+                          sent operators to the customer record to guess. */}
+                      <span className="block">
+                        {creditIneligibleDetail.reason}
+                      </span>
+                    </span>
+                  </span>
+                </Alert>
               )}
 
               {customer?.licence_is_expired && (
@@ -645,14 +818,46 @@ export default function NewSalePage() {
                 </div>
               )}
 
-              <Button
-                className="w-full"
-                disabled={!canSubmit}
-                loading={submitting}
-                onClick={() => void submit()}
-              >
-                {t.sales.confirmSale}
-              </Button>
+              <div className="space-y-2">
+                {/* Confirm-and-print leads: at a counter the document is the
+                    point of the transaction, and the operator would otherwise
+                    confirm here, wait for the next page to load, and hunt for
+                    a second button before handing anything over.
+
+                    Disabled rather than hidden when the permission is absent,
+                    with the reason on hover — the operator can then see the
+                    action exists and ask for the right permission, instead of
+                    reporting a missing button. */}
+                <Button
+                  className="w-full"
+                  disabled={!canSubmit || submitting || printDenied}
+                  loading={submitting && pendingAction === "print"}
+                  title={printDenied ? closingDocument.deniedReason : undefined}
+                  onClick={() => void submit(undefined, { print: true })}
+                >
+                  <Printer className="h-4 w-4" />
+                  {t.sales.confirmAndPrint}
+                </Button>
+                <Button
+                  className="w-full"
+                  // Demoted to the secondary style only while print is usable,
+                  // so there is exactly one primary action either way.
+                  variant={printDenied ? "default" : "outline"}
+                  disabled={!canSubmit || submitting}
+                  loading={submitting && pendingAction === "confirm"}
+                  onClick={() => void submit()}
+                >
+                  {t.sales.confirmSale}
+                </Button>
+              </div>
+
+              {/* Said once, in text, for anyone who will not hover a disabled
+                  control — a touch counter has no hover at all. */}
+              {printDenied && (
+                <p className="text-xs text-muted-foreground">
+                  {closingDocument.deniedReason}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -687,7 +892,9 @@ export default function NewSalePage() {
               variant="destructive"
               disabled={overrideReason.trim().length === 0}
               loading={submitting}
-              onClick={() => void submit(overrideReason)}
+              onClick={() =>
+                void submit(overrideReason, { print: overridePrint })
+              }
             >
               {t.common.confirm}
             </Button>

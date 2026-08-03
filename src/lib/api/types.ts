@@ -131,6 +131,45 @@ export interface Category {
   is_active: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Catalogue import
+// ---------------------------------------------------------------------------
+
+/** One column of the spreadsheet format, as the server defines it. */
+export interface ImportColumnSpec {
+  key: string;
+  header: string;
+  required: boolean;
+  hint: string;
+  example: string;
+}
+
+export interface ImportFormat {
+  max_rows: number;
+  columns: ImportColumnSpec[];
+}
+
+export interface ImportRowError {
+  /** 1-based row number as shown in Excel, so the user can go straight to it. */
+  row_number: number;
+  /** Echoed from the row so the error can be labelled recognisably. */
+  name: string;
+  errors: Record<string, string[]>;
+}
+
+export interface ImportReport {
+  total_rows: number;
+  valid_count: number;
+  error_count: number;
+  created: number;
+  updated: number;
+  /** Set when the file itself is unusable; the row list is then meaningless. */
+  fatal_error: string;
+  errors: ImportRowError[];
+  /** False for a preview, and for any file that was rejected wholesale. */
+  committed: boolean;
+}
+
 export interface Manufacturer {
   id: UUID;
   code: string;
@@ -260,7 +299,14 @@ export interface CustomerListItem {
   outstanding_balance: Money;
   available_credit: Money;
   credit_blocked: boolean;
+  credit_block_reason: string;
   is_over_limit: boolean;
+  /**
+   * Whether credit is permitted at all — active, not blocked, not cash-only
+   * and carrying a limit. Independent of `available_credit`, which only
+   * measures headroom and is meaningless when this is false.
+   */
+  is_credit_eligible: boolean;
   licence_is_expired: boolean;
   payment_terms: string;
 }
@@ -277,7 +323,6 @@ export interface Customer extends CustomerListItem {
   country: string;
   credit_utilisation: string;
   payment_term_days: number;
-  credit_block_reason: string;
   discount_percent: string;
   is_institutional: boolean;
   notes: string;
@@ -605,6 +650,16 @@ export interface Invoice extends InvoiceListItem {
   corrections: InvoiceCorrection[];
   is_editable: boolean;
   payment_progress: string;
+  /** What settled this invoice, newest first. Detail responses only. */
+  payment_allocations: InvoiceAllocation[];
+  /**
+   * True when a credit note was applied to this invoice.
+   *
+   * Not derivable client-side: a credit-note offset zeroes `balance_due`
+   * exactly as a cash payment would, so without this flag an invoice cleared
+   * by a correction reads as "paid".
+   */
+  settled_by_credit_note: boolean;
   lines: InvoiceLine[];
 
   // --- OBR declaration ---
@@ -619,6 +674,29 @@ export interface Invoice extends InvoiceListItem {
   last_declaration_error: string;
   is_declared: boolean;
   declaration_exhausted: boolean;
+}
+
+/**
+ * One payment applied to an invoice — the invoice's view of the link.
+ *
+ * The mirror of `Payment.allocations`, which is the payment's view of the
+ * same rows. Both exist because the relationship is many-to-many: one
+ * transfer can settle several invoices, and one invoice can take several
+ * instalments.
+ */
+export interface InvoiceAllocation {
+  id: number;
+  payment: UUID;
+  payment_reference: string;
+  payment_date: string;
+  /** `CREDIT_NOTE` here means a correction, not money received. */
+  method: string;
+  bank_reference: string;
+  /** A reversed payment keeps its row so a bounced cheque stays visible. */
+  is_reversed: boolean;
+  received_by_name: string;
+  amount: Money;
+  created_at: string;
 }
 
 export interface Payment {

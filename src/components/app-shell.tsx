@@ -654,6 +654,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               href="/notifications"
               className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={t.nav.notifications}
+              title={t.nav.notifications}
             >
               <Bell className="h-5 w-5" />
               {unread > 0 && (

@@ -215,6 +215,52 @@ export const fr = {
     isActive: "Actif",
     inactive: "Inactif",
   },
+  import: {
+    title: "Importer des produits",
+    action: "Importer",
+    subtitle:
+      "Ajoutez plusieurs produits d'un coup à partir d'un fichier Excel ou CSV.",
+    downloadTemplate: "Télécharger le modèle Excel",
+    downloadTemplateHint:
+      "Le modèle contient les colonnes attendues, un exemple, et la liste des codes catégorie, unité et fabricant existants.",
+    chooseFile: "Choisir un fichier",
+    changeFile: "Changer de fichier",
+    dropHint: "Formats acceptés : .xlsx et .csv (10 Mo maximum)",
+    checking: "Vérification du fichier…",
+    importing: "Import en cours…",
+    verify: "Vérifier le fichier",
+    confirmImport: "Confirmer l'import",
+    // Step labels for the three-stage flow, so the user knows where they are.
+    step1: "1. Téléchargez le modèle",
+    step2: "2. Remplissez-le",
+    step3: "3. Renvoyez-le ici",
+    formatTitle: "Format attendu",
+    formatColumn: "Colonne",
+    formatRequired: "Obligatoire",
+    formatDescription: "Description",
+    requiredLegend: "Colonnes obligatoires",
+    optionalLegend: "Colonnes facultatives",
+    showFormat: "Voir le format des colonnes",
+    hideFormat: "Masquer le format",
+    // Bare nouns, composed with the number in JSX — the same pattern the data
+    // table uses for its result count, and the only one that stays correct
+    // when the two languages disagree about where the number sits.
+    rowsReady: "ligne(s) prête(s) à importer",
+    rowsInError: "ligne(s) en erreur",
+    noErrors: "Aucune erreur détectée.",
+    nothingImported:
+      "Rien n'a été importé. Corrigez les lignes ci-dessous puis renvoyez le fichier.",
+    errorsTitle: "Lignes à corriger",
+    row: "Ligne",
+    andMore: "autre(s) ligne(s) en erreur",
+    createdCount: "produit(s) créé(s)",
+    updatedCount: "produit(s) mis à jour",
+    successTitle: "Import terminé",
+    updateNote:
+      "Une ligne dont le code produit existe déjà met à jour la fiche au lieu d'en créer une nouvelle.",
+    allOrNothing:
+      "L'import est tout ou rien : si une seule ligne est en erreur, rien n'est enregistré.",
+  },
   inventory: {
     batchNumber: "Numéro de lot",
     expiryDate: "Date de péremption",
@@ -321,6 +367,7 @@ export const fr = {
     customer: "Client",
     salesperson: "Vendeur",
     confirmSale: "Confirmer la vente",
+    confirmAndPrint: "Confirmer et imprimer",
     cancelSale: "Annuler la vente",
     addLine: "Ajouter une ligne",
     removeLine: "Retirer la ligne",
@@ -338,6 +385,26 @@ export const fr = {
       "À cocher uniquement si les conditions de conservation ont été maintenues.",
     conditionNotes: "État à la réception",
     creditLimitExceeded: "Limite de crédit dépassée",
+    creditNotAvailable: "Ce client ne peut pas acheter à crédit",
+    // Un motif et une correction par cause de refus. Le message générique
+    // conseillait de « lever le blocage » même à un client au comptant, qui
+    // n'a aucun blocage à lever : la consigne était donc inapplicable.
+    creditIneligibleInactive: {
+      reason: "Le compte client n'est pas actif.",
+      fix: "Réactivez la fiche client, ou choisissez une vente au comptant.",
+    },
+    creditIneligibleBlocked: {
+      reason: "Le crédit est bloqué pour ce client.",
+      fix: "Levez le blocage sur la fiche client, ou choisissez une vente au comptant.",
+    },
+    creditIneligibleCashOnly: {
+      reason: "Ce client est configuré en paiement au comptant uniquement.",
+      fix: "Attribuez un délai de paiement (30 j, 60 j…) sur la fiche client, ou choisissez une vente au comptant.",
+    },
+    creditIneligibleNoLimit: {
+      reason: "Aucune limite de crédit n'a été définie pour ce client.",
+      fix: "Définissez une limite de crédit sur la fiche client, ou choisissez une vente au comptant.",
+    },
     creditOverride: "Dérogation à la limite de crédit",
     overrideReason: "Motif de la dérogation",
     recallTrace: "Traçabilité / rappel de lot",
@@ -375,6 +442,22 @@ export const fr = {
     amountInWords: "Arrêté la présente facture à la somme de",
     postedWarning:
       "Une facture validée ne peut plus être modifiée. Émettez une note de crédit pour la corriger.",
+
+    // --- Règlement ---
+    // `paymentReference` et `receivedBy` existent déjà plus bas, dans le bloc
+    // des paiements ; ils sont réutilisés ici plutôt que redéfinis.
+    paymentsApplied: "Règlements appliqués",
+    amountApplied: "Montant appliqué",
+    noPaymentsYet: "Aucun règlement enregistré pour cette facture.",
+    paymentProgress: "Avancement du règlement",
+    // A settled invoice reads "paid", but a credit note is not a payment: the
+    // balance is zero because the debt was cancelled, not because money came
+    // in. Saying so plainly is what keeps a statement reconcilable.
+    settledByCreditNote: "Soldée par note de crédit",
+    settledByCreditNoteHint:
+      "Le solde de cette facture a été annulé par une note de crédit, en tout ou partie, et non réglé en espèces.",
+    creditNoteOffset: "Note de crédit",
+    remainingToPay: "Reste à régler",
 
     // --- Note de crédit ---
     issueCreditNote: "Émettre une note de crédit",
@@ -442,6 +525,30 @@ export const fr = {
     paymentsList: "Paiements",
     unallocatedOnly: "Non affectés uniquement",
     allocations: "Affectations",
+
+    // --- Création manuelle d'une facture ---
+    newInvoice: "Nouvelle facture",
+    newInvoiceTitle: "Nouvelle facture",
+    newInvoiceSubtitle:
+      "Facturation directe, sans passer par une vente au comptoir.",
+    invoiceDetails: "En-tête de la facture",
+    invoiceLines: "Lignes de la facture",
+    lineDescription: "Désignation",
+    lineDescriptionHint:
+      "Reprend le libellé du produit ; modifiable pour une prestation hors catalogue.",
+    freeTextLine: "Ligne libre (hors catalogue)",
+    reference: "Référence",
+    referenceHint: "Bon de commande client, numéro de marché…",
+    creditSaleLabel: "Facture à crédit (payable plus tard)",
+    creditSaleLabelHint:
+      "L'échéance découle des conditions de paiement du client. Sinon la facture est due immédiatement.",
+    invoiceCreated: "Facture créée",
+    invoiceCreatedHint:
+      "Créée à l'état brouillon. Elle devient un document fiscal une fois validée.",
+    noStockMovement:
+      "Une facture saisie ici ne décrémente pas le stock : elle est purement financière. Pour une vente qui sort des marchandises, passez par le comptoir.",
+    nifRequiredForCredit:
+      "Ce client n'a pas de NIF : une facture à crédit ne pourra pas être validée.",
   },
   purchasing: {
     orderNumber: "Numéro de commande",
@@ -777,6 +884,10 @@ export const fr = {
   },
   permissions: {
     discountNotAllowed: "Vous n'avez pas le droit d'appliquer une remise.",
+    // Nomme le document concerné : « imprimer » n'est pas une seule
+    // permission, et un utilisateur peut détenir l'une sans l'autre.
+    printReceiptNotAllowed: "Vous n'avez pas le droit d'imprimer les reçus.",
+    printInvoiceNotAllowed: "Vous n'avez pas le droit d'imprimer les factures.",
   },
   validation: {
     emailInvalid: "Saisissez une adresse e-mail valide.",
@@ -830,7 +941,8 @@ export const fr = {
     selectSupplier: "Sélectionnez un fournisseur",
     selectWarehouse: "Sélectionnez un entrepôt",
     addOneLine: "Ajoutez au moins une ligne avec un produit et une quantité",
-    tenderBelowTotal: "Le montant remis est inférieur au total à payer",
+    tenderBelowTotal: (tendered: string, total: string) =>
+      `Le montant remis (${tendered}) est inférieur au total à payer (${total})`,
     selectOneLine: "Cochez au moins une ligne à réceptionner",
     batchNumberMissing: "Renseignez le numéro de lot de chaque ligne cochée",
     expiryMissing: "Renseignez la date de péremption de chaque ligne cochée",
@@ -845,6 +957,8 @@ export const fr = {
       "Corrigez les dates de péremption déjà dépassées",
     duplicateLotBlocking:
       "Deux lignes portent le même produit, lot et entrepôt : regroupez-les",
+    descriptionMissing: "Renseignez la désignation de chaque ligne",
+    unitPriceMissing: "Saisissez un prix unitaire sur chaque ligne",
   },
   toasts: {
     saleConfirmed: "Vente confirmée",
@@ -861,6 +975,11 @@ export const fr = {
     invoiceDeclareFailed: "Échec de la déclaration à l'OBR",
     pdfDownloaded: "PDF téléchargé",
     pdfFailed: "Échec du téléchargement du PDF",
+    receiptSentToPrinter: "Reçu envoyé à l'imprimante",
+    invoiceSentToPrinter: "Facture envoyée à l'imprimante",
+    // Volontairement sans nom de document : la même erreur couvre le reçu et
+    // la facture, et le numéro du document figure déjà en détail du message.
+    printFailed: "Échec de l'impression",
     reportDownloaded: "Rapport téléchargé",
     allMarkedRead: "Toutes les notifications sont marquées comme lues",
     actionFailed: "L'action a échoué",
@@ -881,6 +1000,13 @@ export const fr = {
     expired_batch: "Ce lot est périmé et ne peut pas être utilisé.",
     credit_limit_exceeded:
       "Cette opération dépasserait la limite de crédit du client.",
+    // Les quatre refus ci-dessous ne sont pas des dépassements de limite : le
+    // serveur renvoie un message précis (motif du blocage, par exemple) qui
+    // est affiché en priorité. Ces libellés ne servent que de repli.
+    credit_blocked: "Le crédit est bloqué pour ce client.",
+    cash_only: "Ce client est configuré pour un paiement au comptant uniquement.",
+    no_credit_limit: "Aucune limite de crédit n'a été définie pour ce client.",
+    customer_inactive: "Le compte client n'est pas actif.",
     invalid_state_transition:
       "Cette action n'est pas possible dans l'état actuel du document.",
     document_locked:
@@ -909,7 +1035,15 @@ export const fr = {
  * allowing any string value.
  */
 type Widen<T> = {
-  [K in keyof T]: T[K] extends string ? string : Widen<T[K]>;
+  [K in keyof T]: T[K] extends string
+    ? string
+    : // Entries that interpolate a value are functions, not strings. Without
+      // this branch the mapped type would recurse into the function object and
+      // strip its call signature, so calling t.blockers.tenderBelowTotal(...)
+      // would not typecheck.
+      T[K] extends (...args: infer A) => infer R
+      ? (...args: A) => R
+      : Widen<T[K]>;
 };
 
 export type Dictionary = Widen<typeof fr>;
@@ -1121,6 +1255,47 @@ export const en: Dictionary = {
     isActive: "Active",
     inactive: "Inactive",
   },
+  import: {
+    title: "Import products",
+    action: "Import",
+    subtitle: "Add many products at once from an Excel or CSV file.",
+    downloadTemplate: "Download the Excel template",
+    downloadTemplateHint:
+      "The template carries the expected columns, a worked example, and the category, unit and manufacturer codes that currently exist.",
+    chooseFile: "Choose a file",
+    changeFile: "Change file",
+    dropHint: "Accepted formats: .xlsx and .csv (10 MB maximum)",
+    checking: "Checking the file…",
+    importing: "Importing…",
+    verify: "Check the file",
+    confirmImport: "Confirm import",
+    step1: "1. Download the template",
+    step2: "2. Fill it in",
+    step3: "3. Upload it here",
+    formatTitle: "Expected format",
+    formatColumn: "Column",
+    formatRequired: "Required",
+    formatDescription: "Description",
+    requiredLegend: "Required columns",
+    optionalLegend: "Optional columns",
+    showFormat: "Show the column format",
+    hideFormat: "Hide the format",
+    rowsReady: "row(s) ready to import",
+    rowsInError: "row(s) with errors",
+    noErrors: "No errors found.",
+    nothingImported:
+      "Nothing was imported. Correct the rows below and upload the file again.",
+    errorsTitle: "Rows to correct",
+    row: "Row",
+    andMore: "more row(s) with errors",
+    createdCount: "product(s) created",
+    updatedCount: "product(s) updated",
+    successTitle: "Import complete",
+    updateNote:
+      "A row whose product code already exists updates that product instead of creating a new one.",
+    allOrNothing:
+      "The import is all or nothing: if a single row is in error, nothing is saved.",
+  },
   inventory: {
     batchNumber: "Batch number",
     expiryDate: "Expiry date",
@@ -1225,6 +1400,7 @@ export const en: Dictionary = {
     customer: "Customer",
     salesperson: "Salesperson",
     confirmSale: "Confirm sale",
+    confirmAndPrint: "Confirm and print",
     cancelSale: "Cancel sale",
     addLine: "Add line",
     removeLine: "Remove line",
@@ -1242,6 +1418,26 @@ export const en: Dictionary = {
       "Tick only if storage conditions were demonstrably maintained.",
     conditionNotes: "Condition on return",
     creditLimitExceeded: "Credit limit exceeded",
+    creditNotAvailable: "This customer cannot buy on credit",
+    // One reason and one remedy per refusal. The single generic hint told
+    // operators to "lift the block" even for a cash-only customer, who has no
+    // block to lift — advice that could not resolve the refusal it accompanied.
+    creditIneligibleInactive: {
+      reason: "The customer account is not active.",
+      fix: "Reactivate the customer record, or switch to a cash sale.",
+    },
+    creditIneligibleBlocked: {
+      reason: "Credit is blocked for this customer.",
+      fix: "Lift the block on the customer record, or switch to a cash sale.",
+    },
+    creditIneligibleCashOnly: {
+      reason: "This customer is configured for cash payment only.",
+      fix: "Set payment terms (30 d, 60 d…) on the customer record, or switch to a cash sale.",
+    },
+    creditIneligibleNoLimit: {
+      reason: "No credit limit has been set for this customer.",
+      fix: "Set a credit limit on the customer record, or switch to a cash sale.",
+    },
     creditOverride: "Credit limit override",
     overrideReason: "Reason for override",
     recallTrace: "Batch traceability / recall",
@@ -1279,6 +1475,19 @@ export const en: Dictionary = {
     amountInWords: "The sum of",
     postedWarning:
       "A posted invoice can no longer be modified. Issue a credit note to correct it.",
+
+    // --- Settlement ---
+    // `paymentReference` and `receivedBy` already exist further down in the
+    // payments block; they are reused here rather than redefined.
+    paymentsApplied: "Payments applied",
+    amountApplied: "Amount applied",
+    noPaymentsYet: "No payments recorded against this invoice.",
+    paymentProgress: "Payment progress",
+    settledByCreditNote: "Settled by credit note",
+    settledByCreditNoteHint:
+      "This invoice's balance was cleared by a credit note, in whole or in part, rather than settled with money.",
+    creditNoteOffset: "Credit note",
+    remainingToPay: "Remaining to pay",
 
     // --- Credit note ---
     issueCreditNote: "Issue credit note",
@@ -1345,6 +1554,29 @@ export const en: Dictionary = {
     paymentsList: "Payments",
     unallocatedOnly: "Unallocated only",
     allocations: "Allocations",
+
+    // --- Raising an invoice by hand ---
+    newInvoice: "New invoice",
+    newInvoiceTitle: "New invoice",
+    newInvoiceSubtitle: "Bill a customer directly, without a counter sale.",
+    invoiceDetails: "Invoice header",
+    invoiceLines: "Invoice lines",
+    lineDescription: "Description",
+    lineDescriptionHint:
+      "Taken from the product; edit it for a service that is not in the catalogue.",
+    freeTextLine: "Free-text line (not in catalogue)",
+    reference: "Reference",
+    referenceHint: "Customer purchase order, contract number…",
+    creditSaleLabel: "Credit invoice (payable later)",
+    creditSaleLabelHint:
+      "The due date follows the customer's payment terms. Otherwise the invoice is due immediately.",
+    invoiceCreated: "Invoice created",
+    invoiceCreatedHint:
+      "Created as a draft. It becomes a fiscal document once posted.",
+    noStockMovement:
+      "An invoice raised here does not move stock — it is purely financial. For a sale that dispenses goods, use the counter.",
+    nifRequiredForCredit:
+      "This customer has no NIF, so a credit invoice cannot be posted.",
   },
   purchasing: {
     orderNumber: "Order number",
@@ -1679,6 +1911,8 @@ export const en: Dictionary = {
   },
   permissions: {
     discountNotAllowed: "You do not have permission to apply a discount.",
+    printReceiptNotAllowed: "You do not have permission to print receipts.",
+    printInvoiceNotAllowed: "You do not have permission to print invoices.",
   },
   validation: {
     emailInvalid: "Enter a valid email address.",
@@ -1729,7 +1963,8 @@ export const en: Dictionary = {
     selectSupplier: "Select a supplier",
     selectWarehouse: "Select a warehouse",
     addOneLine: "Add at least one line with a product and a quantity",
-    tenderBelowTotal: "The amount tendered is less than the total due",
+    tenderBelowTotal: (tendered: string, total: string) =>
+      `The amount tendered (${tendered}) is less than the total due (${total})`,
     selectOneLine: "Tick at least one line to receive",
     batchNumberMissing: "Enter the batch number on every ticked line",
     expiryMissing: "Enter the expiry date on every ticked line",
@@ -1743,6 +1978,8 @@ export const en: Dictionary = {
     expiryInPastBlocking: "Correct the expiry dates that have already passed",
     duplicateLotBlocking:
       "Two lines share the same product, batch and warehouse: combine them",
+    descriptionMissing: "Enter a description on every line",
+    unitPriceMissing: "Enter a unit price on every line",
   },
   toasts: {
     saleConfirmed: "Sale confirmed",
@@ -1759,6 +1996,9 @@ export const en: Dictionary = {
     invoiceDeclareFailed: "Could not declare the invoice to the OBR",
     pdfDownloaded: "PDF downloaded",
     pdfFailed: "Could not download the PDF",
+    receiptSentToPrinter: "Receipt sent to the printer",
+    invoiceSentToPrinter: "Invoice sent to the printer",
+    printFailed: "Could not print",
     reportDownloaded: "Report downloaded",
     allMarkedRead: "All notifications marked as read",
     actionFailed: "The action failed",
@@ -1779,6 +2019,13 @@ export const en: Dictionary = {
     expired_batch: "This batch has expired and cannot be used.",
     credit_limit_exceeded:
       "This operation would exceed the customer's credit limit.",
+    // The four refusals below are not limit breaches: the server returns a
+    // specific message (the block reason, say) which is shown in preference
+    // to these. They exist only as a fallback.
+    credit_blocked: "Credit is blocked for this customer.",
+    cash_only: "This customer is configured for cash payment only.",
+    no_credit_limit: "No credit limit has been set for this customer.",
+    customer_inactive: "The customer account is not active.",
     invalid_state_transition:
       "This action is not permitted in the document's current state.",
     document_locked: "This document is posted and can no longer be modified.",

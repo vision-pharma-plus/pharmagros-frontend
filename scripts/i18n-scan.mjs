@@ -237,6 +237,15 @@ async function loadDictionaries() {
     .replace(/^type Widen[\s\S]*?^};$/gm, "")
     // Drop the type annotation on any top-level `export const x: T =`.
     .replace(/^(export const \w+)\s*:\s*[^=\n]+=/gm, "$1 =")
+    // Entries that interpolate a value are arrow functions with typed
+    // parameters, e.g. `(a: string, b: string) =>`. Strip the annotations so
+    // the reduced module is valid JS; `leaves` treats the function as a leaf.
+    .replace(/\((\s*\w+\s*:\s*\w+\s*(?:,\s*\w+\s*:\s*\w+\s*)*)\)\s*=>/g, (m, params) =>
+      `(${params
+        .split(",")
+        .map((p) => p.split(":")[0].trim())
+        .join(", ")}) =>`,
+    )
     .replace(/ as const/g, "");
   // Written next to the original so any relative import inside it still
   // resolves, then removed once evaluated.

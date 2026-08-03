@@ -1,7 +1,8 @@
 "use client";
 
-import { Lock, Plus } from "lucide-react";
+import { Lock, Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,13 @@ import { useDebounced, usePaginatedQuery, useUrlFilters } from "@/lib/hooks";
 import { useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
+import { ImportDialog } from "./import-dialog";
+
 export default function MedicinesPage() {
   const t = useTranslation();
   const router = useRouter();
   const can = useAuth((state) => state.can);
+  const [importOpen, setImportOpen] = useState(false);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
   });
@@ -90,10 +94,18 @@ export default function MedicinesPage() {
           <p className="text-sm text-muted-foreground">{t.nav.catalog}</p>
         </div>
         {can("catalog.add_medicine") && (
-          <Button onClick={() => router.push("/catalog/medicines/new")}>
-            <Plus className="h-4 w-4" />
-            {t.common.create}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Secondary to "Create": importing is the onboarding path, used
+                once or twice, while creating a single product is the daily one. */}
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" />
+              {t.import.action}
+            </Button>
+            <Button onClick={() => router.push("/catalog/medicines/new")}>
+              <Plus className="h-4 w-4" />
+              {t.common.create}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -114,6 +126,12 @@ export default function MedicinesPage() {
         count={query.count}
         onPageChange={query.setPage}
         onRowClick={(row) => router.push(`/catalog/medicines/${row.id}`)}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={query.refetch}
       />
     </div>
   );

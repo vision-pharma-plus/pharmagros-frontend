@@ -320,3 +320,49 @@ export function saveBlob(blob: Blob, filename: string): void {
   link.remove();
   window.URL.revokeObjectURL(url);
 }
+
+/**
+ * Sends a returned blob straight to the printer dialog.
+ *
+ * A hidden iframe rather than a popup window: the counter browsers block
+ * `window.open` on anything that is not a direct click handler, and an
+ * awaited download means the print call no longer counts as one. The frame
+ * stays in the document until the dialog closes — removing it earlier
+ * cancels the job in Chrome, which is what makes a receipt silently not
+ * come out.
+ */
+export function printBlob(blob: Blob): void {
+  const url = window.URL.createObjectURL(blob);
+  const frame = document.createElement("iframe");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "0";
+  frame.style.height = "0";
+  frame.style.border = "0";
+  frame.src = url;
+
+  const cleanup = () => {
+    // Guard against a double call: `afterprint` fires on some browsers and
+    // the timeout covers the ones where it never does.
+    if (!frame.isConnected) return;
+    frame.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  frame.onload = () => {
+    const view = frame.contentWindow;
+    if (!view) {
+      cleanup();
+      return;
+    }
+    view.addEventListener("afterprint", cleanup);
+    view.focus();
+    view.print();
+    // Fallback for browsers that never fire `afterprint` (older WebKit), so
+    // the object URL is not leaked for the life of the tab.
+    window.setTimeout(cleanup, 60_000);
+  };
+
+  document.body.appendChild(frame);
+}

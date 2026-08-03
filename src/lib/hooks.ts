@@ -207,6 +207,23 @@ export function translateError(
   return known[error.code] ?? error.message ?? t.common.errorOccurred;
 }
 
+/**
+ * Like `translateError`, but prefers the server's own sentence.
+ *
+ * Some refusals carry detail the dictionary cannot: which batch expired, whose
+ * credit is blocked and why. The server has already translated those through
+ * gettext, so the specific message beats the generic one keyed by code. The
+ * dictionary remains the fallback for errors raised with a bare code.
+ */
+export function translateErrorDetailed(
+  error: ApiError | null,
+  t: Dictionary,
+): string | null {
+  if (!error) return null;
+  const known = t.errors as Record<string, string | undefined>;
+  return error.message ?? known[error.code] ?? t.common.errorOccurred;
+}
+
 /** Debounce a value — used for search inputs so each keystroke is not a request. */
 export function useDebounced<T>(value: T, delay = 350): T {
   const [debounced, setDebounced] = useState(value);

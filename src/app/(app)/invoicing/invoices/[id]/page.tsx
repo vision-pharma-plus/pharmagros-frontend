@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, FileMinus, Send } from "lucide-react";
+import { ArrowLeft, Download, FileMinus, Printer, Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -39,7 +39,7 @@ import {
   TableCardSkeleton,
 } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
-import { ApiError, api, saveBlob } from "@/lib/api/client";
+import { ApiError, api, printBlob, saveBlob } from "@/lib/api/client";
 import type { Invoice } from "@/lib/api/types";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
 import { translateError, useQuery } from "@/lib/hooks";
@@ -58,6 +58,7 @@ export default function InvoiceDetailPage() {
   const invoice = useQuery<Invoice>(`/invoicing/invoices/${params.id}/`);
 
   const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [declaring, setDeclaring] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
@@ -89,6 +90,29 @@ export default function InvoiceDetailPage() {
       );
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const printPdf = async () => {
+    if (!invoice.data) return;
+    setPrinting(true);
+    try {
+      const blob = await api.download(
+        `/invoicing/invoices/${params.id}/pdf/`,
+        { language: locale },
+      );
+      printBlob(blob);
+      toast.success(t.toasts.invoiceSentToPrinter, invoice.data.invoice_number);
+      // Same reason as the download: the server counts this copy, so refetch
+      // to show the reprint that just happened.
+      invoice.refetch();
+    } catch (caught) {
+      toast.error(
+        t.toasts.printFailed,
+        caught instanceof ApiError ? translateError(caught, t) : undefined,
+      );
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -159,6 +183,18 @@ export default function InvoiceDetailPage() {
   const item = invoice.data;
   const hasBalance = Number(item.balance_due) > 0;
 
+  // Clamped because an over-allocation, or a rounding drift between the paid
+  // total and the invoice total, must not paint a bar past its track.
+  const progressPercent = Math.min(
+    100,
+    Math.max(0, Number(item.payment_progress) || 0),
+  );
+  const allocations = item.payment_allocations ?? [];
+  const showProgress = Number(item.paid_amount) > 0 && hasBalance;
+
+  /** Governs both the download and the print: one PDF, one permission. */
+  const canPrintInvoice = can("invoicing.print_invoice");
+
   // A credit note corrects a document that has already been issued, so a
   // draft has nothing to correct (edit it instead) and a cancelled invoice no
   // longer stands. Crediting a credit note is not a thing either — the server
@@ -210,16 +246,34 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="no-print flex flex-wrap gap-2">
-          {can("invoicing.print_invoice") && (
-            <Button
-              variant="outline"
-              loading={downloading}
-              onClick={() => void downloadPdf()}
-            >
-              <Download className="h-4 w-4" />
-              {t.invoicing.downloadPdf}
-            </Button>
-          )}
+          {/* Both actions serve the same PDF under the same permission, so
+              they stand or fall together — disabled with the reason on hover
+              rather than hidden, so a missing permission does not read as a
+              missing feature. */}
+          <Button
+            variant="outline"
+            disabled={!canPrintInvoice}
+            loading={downloading}
+            title={
+              canPrintInvoice ? undefined : t.permissions.printInvoiceNotAllowed
+            }
+            onClick={() => void downloadPdf()}
+          >
+            <Download className="h-4 w-4" />
+            {t.invoicing.downloadPdf}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!canPrintInvoice}
+            loading={printing}
+            title={
+              canPrintInvoice ? undefined : t.permissions.printInvoiceNotAllowed
+            }
+            onClick={() => void printPdf()}
+          >
+            <Printer className="h-4 w-4" />
+            {t.common.print}
+          </Button>
           {/* Only offered once automatic retries have given up. While the
               invoice is merely queued, the sweep will handle it and a manual
               button would invite pointless clicking. */}
@@ -379,13 +433,58 @@ export default function InvoiceDetailPage() {
             >
               {formatMoney(item.balance_due)}
             </p>
-            {/* Red vs green was the only cue that an invoice was settled. */}
+            {/* Red vs green was the only cue that an invoice was settled, and
+                it could not distinguish money received from a debt cancelled
+                by a credit note — both leave a zero balance. */}
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {hasBalance ? t.invoicing.outstanding : t.status.PAID}
+              {hasBalance
+                ? t.invoicing.outstanding
+                : item.settled_by_credit_note
+                  ? t.invoicing.settledByCreditNote
+                  : t.status.PAID}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment progress. Shown only once something has been applied and
+          while money is still owed: at 0% the balance tile already says it,
+          and at 100% the bar is a full green rectangle restating the tile
+          beside it. The partial case is the one no other element conveys —
+          a 60%-settled invoice and a 5%-settled one look identical otherwise. */}
+      {showProgress && (
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm font-medium">
+                {t.invoicing.paymentProgress}
+              </p>
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {formatMoney(item.paid_amount)} / {formatMoney(item.total_amount)}
+                <span className="ml-2 font-medium text-foreground">
+                  {progressPercent.toFixed(0)} %
+                </span>
+              </p>
+            </div>
+            <div
+              className="mt-2 h-2 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={Math.round(progressPercent)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t.invoicing.paymentProgress}
+            >
+              <div
+                className="h-full rounded-full bg-success transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t.invoicing.remainingToPay}: {formatMoney(item.balance_due)}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -477,6 +576,88 @@ export default function InvoiceDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* What actually settled this invoice.
+          `Payment` links to invoices many-to-many through allocations — one
+          transfer can clear six invoices, one invoice can take several
+          instalments — so a single "amount paid" figure is the output of a
+          history that was previously unreachable from here. Answering "which
+          payments were applied to this?" meant leaving for the payments list
+          and scanning it for this invoice number. */}
+      {(allocations.length > 0 || hasBalance) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.invoicing.paymentsApplied}</CardTitle>
+          </CardHeader>
+          <CardContent className="px-0">
+            {allocations.length === 0 ? (
+              <p className="px-6 pb-2 text-sm text-muted-foreground">
+                {t.invoicing.noPaymentsYet}
+              </p>
+            ) : (
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>{t.common.date}</TH>
+                    <TH>{t.invoicing.paymentReference}</TH>
+                    <TH>{t.invoicing.paymentMethod}</TH>
+                    <TH>{t.invoicing.receivedBy}</TH>
+                    <TH numeric>{t.invoicing.amountApplied}</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {/* Reversing a payment deletes its allocation rows, so a
+                      bounced cheque disappears from this table and the balance
+                      goes back up together — the evidence of the reversal
+                      lives on the payment record itself. Nothing here needs a
+                      "reversed" state. */}
+                  {allocations.map((allocation) => (
+                    <TR key={allocation.id}>
+                      <TD>{formatDate(allocation.payment_date)}</TD>
+                      <TD>
+                        <span className="font-medium">
+                          {allocation.payment_reference}
+                        </span>
+                        {allocation.bank_reference && (
+                          <p className="text-xs text-muted-foreground">
+                            {allocation.bank_reference}
+                          </p>
+                        )}
+                      </TD>
+                      <TD>
+                        {/* A credit-note offset is a synthetic payment raised
+                            by the correction, not money anyone received, so it
+                            is badged rather than named like a tender type. */}
+                        {allocation.method === "CREDIT_NOTE" ? (
+                          <Badge variant="warning">
+                            {t.invoicing.creditNoteOffset}
+                          </Badge>
+                        ) : (
+                          <span>
+                            {t.paymentMethods[
+                              allocation.method as keyof typeof t.paymentMethods
+                            ] ?? allocation.method}
+                          </span>
+                        )}
+                      </TD>
+                      <TD className="text-muted-foreground">
+                        {allocation.received_by_name || "—"}
+                      </TD>
+                      <TD numeric>{formatMoney(allocation.amount)}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+
+            {item.settled_by_credit_note && (
+              <p className="px-6 pt-3 text-xs text-muted-foreground">
+                {t.invoicing.settledByCreditNoteHint}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Credit notes already raised against this invoice. Shown so the
           balance reads correctly — an invoice settled by a credit rather than
