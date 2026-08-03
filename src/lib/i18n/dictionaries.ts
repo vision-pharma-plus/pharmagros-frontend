@@ -1574,7 +1574,7 @@ export const en: Dictionary = {
     invoiceCreatedHint:
       "Created as a draft. It becomes a fiscal document once posted.",
     noStockMovement:
-      "An invoice raised here does not move stock — it is purely financial. For a sale that dispenses goods, use the counter.",
+      "An invoice raised here does not move stock - it is purely financial. For a sale that dispenses goods, use the counter.",
     nifRequiredForCredit:
       "This customer has no NIF, so a credit invoice cannot be posted.",
   },
