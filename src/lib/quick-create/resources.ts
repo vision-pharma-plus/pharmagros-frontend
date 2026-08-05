@@ -18,7 +18,7 @@
  * file, not another bespoke dialog.
  */
 
-import type { Dictionary } from "@/lib/i18n/dictionaries";
+import type { Dictionary, Locale } from "@/lib/i18n/dictionaries";
 
 /** The shape every reference record shares once created. */
 export interface ReferenceRecord {
@@ -67,11 +67,12 @@ export interface QuickCreateField {
   /** Placeholder option meaning "no value", for optional references. */
   emptyLabel?: (t: Dictionary) => string;
   /**
-   * Copy this field's value from another when the user has not typed one.
-   * Used for the FR/EN name pairs: a user who fills only French should not be
-   * blocked by a required English name they have no translation for.
+   * A label stored as a French/English pair. The user types it once, in
+   * whichever language they work in, and it is sent as that language's column
+   * — `name` becomes `name_fr` or `name_en`. The backend translates the side
+   * left blank, so nobody is asked for a translation they do not have.
    */
-  mirrorFrom?: string;
+  localised?: boolean;
   /**
    * Leave the key out of the payload entirely when blank, rather than sending
    * "". For a column that is non-nullable with a database default, an empty
@@ -135,18 +136,11 @@ export const QUICK_CREATE_RESOURCES = {
         uppercase: true,
       },
       {
-        name: "name_fr",
+        name: "name",
         kind: "text",
-        label: (t) => `${t.catalog.name} (FR)`,
+        label: (t) => t.catalog.name,
         required: true,
-      },
-      {
-        name: "name_en",
-        kind: "text",
-        label: (t) => `${t.catalog.name} (EN)`,
-        // Not required: mirrored from the French name when left blank, which
-        // is what the backend's own translation fallback does anyway.
-        mirrorFrom: "name_fr",
+        localised: true,
       },
       {
         name: "parent",
@@ -226,16 +220,11 @@ export const QUICK_CREATE_RESOURCES = {
         placeholder: () => "BOX",
       },
       {
-        name: "name_fr",
+        name: "name",
         kind: "text",
-        label: (t) => `${t.catalog.name} (FR)`,
+        label: (t) => t.catalog.name,
         required: true,
-      },
-      {
-        name: "name_en",
-        kind: "text",
-        label: (t) => `${t.catalog.name} (EN)`,
-        mirrorFrom: "name_fr",
+        localised: true,
       },
       {
         name: "base_unit",
@@ -273,19 +262,12 @@ export const QUICK_CREATE_RESOURCES = {
         required: true,
         uppercase: true,
       },
-      // A warehouse name is a translated pair like a category's, not a single
-      // `name` column — `name` itself is read-only and resolved per language.
       {
-        name: "name_fr",
+        name: "name",
         kind: "text",
-        label: (t) => `${t.catalog.name} (FR)`,
+        label: (t) => t.catalog.name,
         required: true,
-      },
-      {
-        name: "name_en",
-        kind: "text",
-        label: (t) => `${t.catalog.name} (EN)`,
-        mirrorFrom: "name_fr",
+        localised: true,
       },
       { name: "address", kind: "text", label: (t) => t.partners.address },
       {
@@ -503,6 +485,7 @@ export function initialValues(
 export function buildPayload(
   resource: QuickCreateResource,
   values: Record<string, string | boolean>,
+  locale: Locale = "fr",
 ): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
 
@@ -514,12 +497,7 @@ export function buildPayload(
       continue;
     }
 
-    let value = typeof raw === "string" ? raw.trim() : "";
-
-    if (!value && field.mirrorFrom) {
-      const source = values[field.mirrorFrom];
-      value = typeof source === "string" ? source.trim() : "";
-    }
+    const value = typeof raw === "string" ? raw.trim() : "";
 
     if (field.kind === "reference") {
       payload[field.name] = value || null;
@@ -529,6 +507,13 @@ export function buildPayload(
     // Absent, so the column's own default applies. Sending "" would be
     // rejected outright for a non-nullable field.
     if (!value && field.omitWhenBlank) continue;
+
+    // One typed label goes to the column for the language it was typed in;
+    // the backend fills in the other side.
+    if (field.localised) {
+      payload[`${field.name}_${locale === "en" ? "en" : "fr"}`] = value;
+      continue;
+    }
 
     payload[field.name] = value;
   }

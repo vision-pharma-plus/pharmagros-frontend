@@ -4,6 +4,7 @@ import { PackageCheck, Pencil, Send } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { TranslatableText } from "@/components/translatable-text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -257,7 +258,7 @@ export default function PurchaseOrderDetailPage() {
 
       {data.status === "REJECTED" && data.rejection_reason && (
         <Alert variant="destructive" title={t.status.REJECTED}>
-          {data.rejection_reason}
+          <TranslatableText inline text={data.rejection_reason} />
         </Alert>
       )}
 

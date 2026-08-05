@@ -4,6 +4,7 @@ import { ArrowLeft, Snowflake, Lock, Pencil } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { TranslatableText } from "@/components/translatable-text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -409,7 +410,9 @@ export default function MedicineDetailPage() {
                       {" → "}
                       {fmt.money(entry.new_selling_price)}
                     </TD>
-                    <TD>{entry.reason}</TD>
+                    <TD>
+                      <TranslatableText inline text={entry.reason} />
+                    </TD>
                     <TD>{entry.changed_by_name}</TD>
                   </TR>
                 ))}

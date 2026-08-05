@@ -44,9 +44,12 @@ export interface User {
 export interface Role {
   id: UUID;
   code: string;
+  // `name`/`description` are resolved read-only values for the active
+  // language; the paired columns behind them are what a client writes.
   name: string;
   name_fr: string;
   name_en: string;
+  description: string;
   description_fr: string;
   description_en: string;
   permissions: number[];
@@ -920,6 +923,277 @@ export interface UserSession {
   expires_at: string;
   revoked_at: string | null;
   is_active: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Payables: supplier invoices and payments
+// ---------------------------------------------------------------------------
+
+export interface SupplierPaymentAllocation {
+  id: number;
+  payment: UUID;
+  payment_reference: string;
+  payment_date: string;
+  payment_method: string;
+  supplier_invoice: UUID;
+  invoice_number: string;
+  invoice_reference: string;
+  amount: Money;
+  is_reversed: boolean;
+  created_at: string;
+}
+
+export interface SupplierInvoiceListItem {
+  id: UUID;
+  reference: string;
+  invoice_number: string;
+  status: string;
+  supplier: UUID;
+  supplier_name: string;
+  purchase_order: UUID | null;
+  order_number: string | null;
+  invoice_date: string;
+  due_date: string | null;
+  total_amount: Money;
+  paid_amount: Money;
+  balance_due: Money;
+  /** Percentage settled, 0-100. Computed server-side so the bar matches the books. */
+  payment_progress: string;
+  is_overdue: boolean;
+  days_overdue: number;
+  currency: string;
+}
+
+export interface SupplierInvoice extends SupplierInvoiceListItem {
+  supplier_code: string;
+  received_date: string | null;
+  subtotal: Money;
+  tax_amount: Money;
+  freight_cost: Money;
+  customs_duty: Money;
+  other_charges: Money;
+  exchange_rate: string;
+  is_open: boolean;
+  is_cancelled: boolean;
+  notes: string;
+  cancelled_at: string | null;
+  cancellation_reason: string;
+  payment_allocations: SupplierPaymentAllocation[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierPaymentListItem {
+  id: UUID;
+  reference: string;
+  supplier: UUID;
+  supplier_name: string;
+  payment_date: string;
+  amount: Money;
+  allocated_amount: Money;
+  unallocated_amount: Money;
+  method: string;
+  payment_reference: string;
+  bank_reference: string;
+  is_reversed: boolean;
+}
+
+export interface SupplierPayment extends SupplierPaymentListItem {
+  supplier_code: string;
+  bank_account: string;
+  paid_by: UUID | null;
+  paid_by_name: string;
+  notes: string;
+  reversed_at: string | null;
+  reversal_reason: string;
+  allocations: SupplierPaymentAllocation[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierBalance {
+  supplier_id: UUID;
+  supplier_code: string;
+  supplier_name: string;
+  currency: string;
+  invoice_count: number;
+  total_invoiced: Money;
+  total_paid: Money;
+  outstanding_balance: Money;
+  overdue_amount: Money;
+  oldest_due_date: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Accounting
+// ---------------------------------------------------------------------------
+
+export interface ExpenseCategory {
+  id: UUID;
+  code: string;
+  // `name`/`description` are resolved read-only values for the active
+  // language; the paired columns behind them are what a client writes.
+  name: string;
+  name_fr: string;
+  name_en: string;
+  description: string;
+  description_fr: string;
+  description_en: string;
+  is_active: boolean;
+  expense_count: number;
+}
+
+export interface ExpenseListItem {
+  id: UUID;
+  reference: string;
+  status: string;
+  category: UUID;
+  category_code: string;
+  category_name: string;
+  description: string;
+  expense_date: string;
+  paid_date: string | null;
+  amount: Money;
+  currency: string;
+  payment_method: string;
+  payee: string;
+}
+
+export interface Expense extends ExpenseListItem {
+  notes: string;
+  tax_amount: Money;
+  net_amount: Money;
+  payment_reference: string;
+  supplier: UUID | null;
+  supplier_name: string | null;
+  purchase_order: UUID | null;
+  order_number: string | null;
+  receipt_number: string;
+  recorded_by: UUID | null;
+  recorded_by_name: string;
+  approved_by: UUID | null;
+  approved_by_name: string;
+  approved_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string;
+  is_editable: boolean;
+  is_paid: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialOverview {
+  date_from: string;
+  date_to: string;
+  currency: string;
+  sales_count: number;
+  gross_revenue: Money;
+  sales_tax: Money;
+  net_revenue: Money;
+  cost_of_goods: Money;
+  gross_profit: Money;
+  gross_margin_percent: string;
+  operating_expenses: Money;
+  supplier_payments: Money;
+  total_cash_outflow: Money;
+  unpaid_expenses: Money;
+  operating_result: Money;
+  operating_margin_percent: string;
+  outstanding_payables: Money;
+  supplier_count_owed: number;
+}
+
+export interface ExpenseCategoryReportRow {
+  category_id: UUID;
+  category_code: string;
+  category_name: string;
+  category_name_en: string;
+  expense_count: number;
+  total_amount: Money;
+  total_tax: Money;
+  percentage: string;
+}
+
+export interface ExpenseCategoryReport {
+  date_from: string | null;
+  date_to: string | null;
+  total_amount: Money;
+  expense_count: number;
+  category_count: number;
+  categories: ExpenseCategoryReportRow[];
+}
+
+export interface SupplierPaymentReport {
+  date_from: string | null;
+  date_to: string | null;
+  total_paid: Money;
+  total_allocated: Money;
+  total_unallocated: Money;
+  payment_count: number;
+  reversed_count: number;
+  suppliers: {
+    supplier_id: UUID;
+    supplier_code: string;
+    supplier_name: string;
+    payment_count: number;
+    total_paid: Money;
+    total_allocated: Money;
+  }[];
+  methods: { method: string; payment_count: number; total_paid: Money }[];
+}
+
+export interface OutstandingBalancesReport {
+  as_of: string;
+  total_outstanding: Money;
+  supplier_count: number;
+  invoice_count: number;
+  ageing: {
+    current: Money;
+    days_1_30: Money;
+    days_31_60: Money;
+    days_61_90: Money;
+    days_over_90: Money;
+  };
+  suppliers: {
+    supplier_id: UUID;
+    supplier_code: string;
+    supplier_name: string;
+    currency: string;
+    invoice_count: number;
+    outstanding_balance: Money;
+    overdue_amount: Money;
+    oldest_due_date: string | null;
+    invoices: {
+      id: UUID;
+      reference: string;
+      invoice_number: string;
+      invoice_date: string;
+      due_date: string | null;
+      total_amount: Money;
+      paid_amount: Money;
+      balance_due: Money;
+      days_overdue: number;
+      payment_progress: string;
+    }[];
+  }[];
+}
+
+export interface CashOutflowReport {
+  date_from: string;
+  date_to: string;
+  total_outflow: Money;
+  supplier_payments_total: Money;
+  supplier_payment_count: number;
+  expenses_total: Money;
+  expense_count: number;
+  unpaid_expenses_total: Money;
+  expenses_by_category: {
+    category_code: string;
+    category_name: string;
+    expense_count: number;
+    total_amount: Money;
+  }[];
+  breakdown: { source: string; total_amount: Money }[];
 }
 
 // ---------------------------------------------------------------------------

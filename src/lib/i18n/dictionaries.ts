@@ -84,6 +84,17 @@ export const fr = {
     purchasing: "Achats",
     purchaseOrders: "Bons de commande",
     goodsReceipts: "Réceptions",
+    // Les libellés de menu nomment explicitement le fournisseur. Ils doivent
+    // se distinguer de deux voisins à la fois : « Factures » (clients) et
+    // « Dépenses » en Comptabilité (loyer, charges — qui ne sont pas des
+    // factures fournisseurs). Nommer la contrepartie sépare les trois.
+    supplierInvoices: "Factures fournisseurs",
+    supplierPayments: "Paiements fournisseurs",
+    accounting: "Comptabilité",
+    expenses: "Dépenses",
+    expenseCategories: "Catégories de dépenses",
+    financialOverview: "Synthèse financière",
+    accountingReports: "Rapports comptables",
     partners: "Partenaires",
     customers: "Clients",
     suppliers: "Fournisseurs",
@@ -353,6 +364,25 @@ export const fr = {
     saleType: "Type de vente",
     cashSale: "Vente au comptant",
     creditSale: "Vente à crédit",
+    // --- Brouillons ---
+    sale: "Vente",
+    draftSale: "Brouillon de vente",
+    editDraft: "Modifier le brouillon",
+    deleteDraft: "Supprimer le brouillon",
+    deleteDraftConfirm:
+      "Supprimer définitivement le brouillon %{number} ? Les réservations de stock qu'il détient seront libérées.",
+    draftDeleted: "Brouillon supprimé",
+    draftSaved: "Brouillon enregistré",
+    draftOnlyEditable:
+      "Seul un brouillon peut être modifié. Une vente confirmée s'annule ou se retourne.",
+    draftNotConfirmedHint:
+      "Ce brouillon n'est pas confirmé : aucun stock n'est sorti et aucun document n'est émis. Reprenez-le pour le compléter et le valider.",
+    confirmDraft: "Confirmer la vente",
+    saveChanges: "Enregistrer les modifications",
+    discardChanges: "Abandonner les modifications",
+    saleLines: "Lignes de vente",
+    noLines: "Aucune ligne sur cette vente.",
+    batchesIssued: "Lots servis",
     // Les libellés du sélecteur nomment le document produit : c'est ce que
     // l'opérateur doit savoir avant de valider, pas après.
     cashSaleOption: "Vente au comptant (reçu)",
@@ -631,6 +661,205 @@ export const fr = {
     saveDraft: "Enregistrer le brouillon",
     saveAndSubmit: "Enregistrer et soumettre",
   },
+  payables: {
+    // --- Factures reçues des fournisseurs ---
+    //
+    // Le vocabulaire dit toujours « reçue » : ce sont les factures que le
+    // fournisseur nous adresse, jamais des factures que nous lui émettons.
+    // « Facture fournisseur » seul se lit dans les deux sens et a déjà prêté
+    // à confusion ; la facturation client vit dans le module Facturation.
+    supplierInvoices: "Factures reçues des fournisseurs",
+    supplierInvoice: "Facture reçue du fournisseur",
+    newSupplierInvoice: "Enregistrer une facture reçue",
+    supplierInvoicesSubtitle:
+      "Factures que nos fournisseurs nous adressent. C'est ce que nous leur devons.",
+    invoiceNumber: "N° de facture du fournisseur",
+    internalReference: "Référence interne",
+    invoiceDate: "Date de facture",
+    receivedDate: "Date de réception",
+    dueDate: "Échéance",
+    relatedOrder: "Bon de commande lié",
+    noRelatedOrder: "Aucun bon de commande",
+    totalAmount: "Montant total",
+    paidAmount: "Montant réglé",
+    balanceDue: "Solde à payer",
+    paymentProgress: "Avancement du règlement",
+    daysOverdue: "Jours de retard",
+    overdue: "En retard",
+    dueToday: "Échoit aujourd'hui",
+    cancelInvoice: "Annuler la facture",
+    invoiceHasPayments:
+      "Des paiements ont été imputés sur cette facture. Annulez-les avant de supprimer la facture.",
+    totalHint:
+      "Laissez vide pour calculer le total à partir des montants saisis ci-dessus.",
+    dueDateHint:
+      "Laissez vide pour appliquer les conditions de paiement du fournisseur.",
+    // --- Paiements émis vers les fournisseurs ---
+    //
+    // Même raison : « paiement fournisseur » ne dit pas qui paie qui. Ici
+    // l'argent sort de la maison vers le fournisseur. Les encaissements
+    // clients vivent dans Facturation → Paiements.
+    supplierPayments: "Paiements aux fournisseurs",
+    supplierPayment: "Paiement au fournisseur",
+    newPayment: "Enregistrer un paiement à un fournisseur",
+    supplierPaymentsSubtitle:
+      "Sommes que nous versons à nos fournisseurs pour régler leurs factures.",
+    moneyOutDirection: "Sortie de trésorerie",
+    paymentDate: "Date de paiement",
+    paymentMethod: "Mode de paiement",
+    paymentReference: "N° de transaction",
+    paymentReferenceHint: "Numéro de chèque ou référence interne.",
+    bankReference: "Référence bancaire / mobile money",
+    bankReferenceHint:
+      "Référence du virement ou code de confirmation mobile money.",
+    bankAccount: "Compte débité",
+    amountPaid: "Montant payé",
+    allocatedAmount: "Montant imputé",
+    unallocatedAmount: "Montant non imputé",
+    unallocatedHint:
+      "Cette somme reste disponible pour régler une facture ultérieure.",
+    allocate: "Imputer",
+    allocateRemaining: "Imputer le solde",
+    allocations: "Imputations",
+    paymentHistory: "Historique des paiements",
+    noPayments: "Aucun paiement enregistré.",
+    reversePayment: "Annuler le paiement",
+    reversed: "Annulé",
+    reversalReason: "Motif d'annulation",
+    paidBy: "Enregistré par",
+    // --- Sélection des factures à régler ---
+    selectInvoices: "Factures à régler",
+    settleOldestFirst: "Régler les plus anciennes d'abord",
+    settleOldestFirstHint:
+      "Le montant sera réparti automatiquement sur les factures ouvertes, de la plus ancienne à la plus récente.",
+    chooseInvoices: "Choisir les factures et les montants",
+    // --- Imputation automatique ---
+    autoAllocationHint:
+      "Le montant est imputé automatiquement sur les factures ouvertes, de la plus ancienne échéance à la plus récente.",
+    enterAmountToPreview:
+      "Saisissez un montant pour voir les factures qui seront réglées.",
+    selectSupplierFirst: "Choisissez d'abord un fournisseur.",
+    noOutstandingInvoicesOnAccount:
+      "Ce fournisseur n'a aucune facture ouverte. Le paiement sera enregistré en avance sur compte.",
+    willBeSettled: "Soldée",
+    willBePartlyPaid: "Partiellement réglée",
+    leftOnAccount:
+      "%{amount} resteront en avance sur compte, disponibles pour une facture ultérieure.",
+    adjustAllocation: "Ajuster l'imputation",
+    backToAutomatic: "Revenir à l'imputation automatique",
+    chooseInvoicesHint:
+      "Indiquez le montant à imputer sur chaque facture.",
+    outstandingInvoices: "Factures ouvertes",
+    allInvoices: "Toutes les factures",
+    settledInvoices: "Factures réglées",
+    noOutstandingInvoices: "Ce fournisseur n'a aucune facture ouverte.",
+    allocationExceedsPayment:
+      "Le total imputé dépasse le montant du paiement.",
+    remainingToAllocate: "Reste à imputer",
+    // --- Soldes ---
+    outstandingBalances: "Soldes fournisseurs",
+    outstandingBalance: "Solde dû",
+    totalOutstanding: "Total dû",
+    totalInvoiced: "Total facturé",
+    totalPaid: "Total réglé",
+    invoiceCount: "Factures",
+    oldestDue: "Plus ancienne échéance",
+    overdueAmount: "Montant en retard",
+    noOutstanding: "Aucun solde fournisseur en cours.",
+  },
+  accounting: {
+    // --- Dépenses ---
+    expenses: "Dépenses",
+    expense: "Dépense",
+    newExpense: "Nouvelle dépense",
+    editExpense: "Modifier la dépense",
+    reference: "Référence",
+    category: "Catégorie",
+    description: "Description",
+    descriptionHint: "En quelques mots, l'objet de la dépense.",
+    optional: "Facultatif",
+    optionalHint: "Facultatif.",
+    optionalWithHint: "Facultatif. %{hint}",
+    notes: "Notes",
+    notesHint:
+      "Détaillez la dépense : ce qu'elle couvre, pourquoi elle a été engagée, qui l'a autorisée.",
+    expenseDate: "Date de la dépense",
+    expenseDateHint: "Date à laquelle la dépense a été engagée.",
+    paidDate: "Date de paiement",
+    paidDateHint:
+      "Date à laquelle l'argent est réellement sorti. Laissez vide si la dépense n'est pas encore réglée.",
+    amount: "Montant",
+    taxAmount: "TVA incluse",
+    netAmount: "Montant hors TVA",
+    payee: "Payé à",
+    payeeHint:
+      "Bailleur, fournisseur d'électricité, prestataire… Le nom du bénéficiaire.",
+    receiptNumber: "N° de reçu",
+    relatedSupplier: "Fournisseur lié",
+    relatedSupplierHint:
+      "À renseigner uniquement si la dépense concerne un fournisseur enregistré.",
+    relatedOrder: "Bon de commande lié",
+    approve: "Approuver",
+    markPaid: "Marquer comme payée",
+    cancelExpense: "Annuler la dépense",
+    unpaidOnly: "Non réglées uniquement",
+    recordedBy: "Enregistrée par",
+    approvedBy: "Approuvée par",
+    // --- Catégories ---
+    categories: "Catégories de dépenses",
+    newCategory: "Nouvelle catégorie",
+    categoryCode: "Code",
+    categoryName: "Libellé",
+    // Saying so up front, because the operator types one label and the other
+    // language appears without them doing anything.
+    otherLanguageHint:
+      "Dans votre langue : la version anglaise est traduite automatiquement.",
+    inUse: "%{count} dépense(s)",
+    activeCategory: "Active",
+    // --- Synthèse financière ---
+    overview: "Synthèse financière",
+    period: "Période",
+    moneyIn: "Entrées",
+    moneyOut: "Sorties",
+    result: "Résultat",
+    position: "Position",
+    grossRevenue: "Chiffre d'affaires TTC",
+    salesTax: "TVA collectée",
+    netRevenue: "Chiffre d'affaires HT",
+    costOfGoodsSold: "Coût des marchandises vendues",
+    grossProfit: "Marge brute",
+    grossMargin: "Taux de marge brute",
+    operatingExpenses: "Charges d'exploitation",
+    supplierPayments: "Paiements fournisseurs",
+    totalCashOutflow: "Total des sorties",
+    unpaidExpenses: "Dépenses non réglées",
+    operatingResult: "Résultat d'exploitation",
+    operatingMargin: "Taux de résultat",
+    outstandingPayables: "Dettes fournisseurs",
+    suppliersOwed: "Fournisseurs concernés",
+    salesCount: "Ventes",
+    // --- Rapports ---
+    reports: "Rapports comptables",
+    expensesByCategory: "Dépenses par catégorie",
+    supplierPaymentReport: "Rapport des paiements fournisseurs",
+    outstandingBalancesReport: "Soldes fournisseurs",
+    cashOutflowReport: "Sorties de trésorerie",
+    ageing: "Antériorité des dettes",
+    ageingCurrent: "Non échu",
+    ageing1to30: "1 à 30 jours",
+    ageing31to60: "31 à 60 jours",
+    ageing61to90: "61 à 90 jours",
+    ageingOver90: "Plus de 90 jours",
+    shareOfTotal: "Part du total",
+    byMethod: "Par mode de paiement",
+    bySupplier: "Par fournisseur",
+    bySource: "Par origine",
+    SUPPLIER_PAYMENTS: "Paiements fournisseurs",
+    EXPENSES: "Dépenses",
+    reversedPayments: "%{count} paiement(s) annulé(s) sur la période",
+    noExpenses: "Aucune dépense sur la période.",
+    noData: "Aucune donnée sur la période.",
+  },
   partners: {
     customerCode: "Code client",
     businessName: "Raison sociale",
@@ -761,6 +990,8 @@ export const fr = {
     DISPOSED: "Détruit",
     DISCONTINUED: "Arrêté",
     SUSPENDED: "Suspendu",
+    AWAITING_PAYMENT: "À régler",
+    RECORDED: "Enregistrée",
   },
   dosageForms: {
     TABLET: "Comprimé",
@@ -904,8 +1135,28 @@ export const fr = {
     markAllRead: "Tout marquer comme lu",
     emptyTitle: "Aucune notification",
   },
+  // Traduction automatique des textes saisis par les utilisateurs (notes,
+  // motifs, commentaires). Le libellé « automatique » est obligatoire :
+  // le lecteur doit savoir qu'il ne lit pas les mots de son collègue.
+  machineTranslation: {
+    translate: "Traduire",
+    translating: "Traduction…",
+    showOriginal: "Voir l'original",
+    machineTranslated: "Traduction automatique",
+    unavailable: "Traduction indisponible",
+    // Le texte d'origine reste la référence : ces champs (motifs
+    // d'annulation, notes de qualité) font partie de la piste d'audit.
+    originalIsAuthoritative: "Le texte d'origine fait foi.",
+  },
   permissions: {
     discountNotAllowed: "Vous n'avez pas le droit d'appliquer une remise.",
+    // Nomme le plafond et qui peut y déroger : un opérateur qui bute dessus
+    // doit savoir à qui s'adresser, pas seulement que c'est refusé.
+    discountOverLimit:
+      "Remise supérieure au plafond de %{max} %. Un responsable ou un administrateur doit l'autoriser.",
+    discountLimitHint: "Remise maximale autorisée : %{max} %.",
+    editSaleNotAllowed: "Vous n'avez pas le droit de modifier une vente.",
+    deleteSaleNotAllowed: "Vous n'avez pas le droit de supprimer un brouillon.",
     // Nomme le document concerné : « imprimer » n'est pas une seule
     // permission, et un utilisateur peut détenir l'une sans l'autre.
     printReceiptNotAllowed: "Vous n'avez pas le droit d'imprimer les reçus.",
@@ -1150,6 +1401,17 @@ export const en: Dictionary = {
     purchasing: "Purchasing",
     purchaseOrders: "Purchase orders",
     goodsReceipts: "Goods receipts",
+    // Menu labels name the supplier explicitly. They have to stay clear of
+    // two neighbours at once: "Invoices" (which we raise on customers) and
+    // "Expenses" in Accounting (overheads like rent, which are not supplier
+    // bills). Naming the counterparty is what separates all three.
+    supplierInvoices: "Supplier bills",
+    supplierPayments: "Supplier payments",
+    accounting: "Accounting",
+    expenses: "Expenses",
+    expenseCategories: "Expense categories",
+    financialOverview: "Financial overview",
+    accountingReports: "Accounting reports",
     partners: "Partners",
     customers: "Customers",
     suppliers: "Suppliers",
@@ -1406,6 +1668,25 @@ export const en: Dictionary = {
     saleType: "Sale type",
     cashSale: "Cash sale",
     creditSale: "Credit sale",
+    // --- Drafts ---
+    sale: "Sale",
+    draftSale: "Draft sale",
+    editDraft: "Edit draft",
+    deleteDraft: "Delete draft",
+    deleteDraftConfirm:
+      "Permanently delete draft %{number}? Any stock it has reserved will be released.",
+    draftDeleted: "Draft deleted",
+    draftSaved: "Draft saved",
+    draftOnlyEditable:
+      "Only a draft can be edited. A confirmed sale is cancelled or returned against.",
+    draftNotConfirmedHint:
+      "This draft is not confirmed: no stock has been issued and no document raised. Reopen it to finish and confirm the sale.",
+    confirmDraft: "Confirm sale",
+    saveChanges: "Save changes",
+    discardChanges: "Discard changes",
+    saleLines: "Sale lines",
+    noLines: "This sale has no lines.",
+    batchesIssued: "Batches issued",
     // The picker labels name the document produced: that is what the operator
     // needs to know before committing, not after.
     cashSaleOption: "Cash sale (receipt)",
@@ -1678,6 +1959,197 @@ export const en: Dictionary = {
     saveDraft: "Save draft",
     saveAndSubmit: "Save and submit",
   },
+  payables: {
+    // --- Bills received from suppliers ---
+    //
+    // The wording always says "received": these are bills a supplier sends
+    // *to us*, never invoices we raise against them. "Supplier invoice" alone
+    // reads both ways and has already caused confusion; customer invoicing
+    // lives in the Invoicing module.
+    supplierInvoices: "Bills received from suppliers",
+    supplierInvoice: "Bill received from supplier",
+    newSupplierInvoice: "Record a bill received",
+    supplierInvoicesSubtitle:
+      "Bills our suppliers send us. This is what we owe them.",
+    invoiceNumber: "Supplier's invoice no.",
+    internalReference: "Internal reference",
+    invoiceDate: "Invoice date",
+    receivedDate: "Date received",
+    dueDate: "Due date",
+    relatedOrder: "Related purchase order",
+    noRelatedOrder: "No purchase order",
+    totalAmount: "Total amount",
+    paidAmount: "Amount paid",
+    balanceDue: "Balance due",
+    paymentProgress: "Payment progress",
+    daysOverdue: "Days overdue",
+    overdue: "Overdue",
+    dueToday: "Due today",
+    cancelInvoice: "Cancel invoice",
+    invoiceHasPayments:
+      "Payments have been applied to this invoice. Reverse them before cancelling it.",
+    totalHint: "Leave blank to compute the total from the amounts above.",
+    dueDateHint: "Leave blank to apply the supplier's payment terms.",
+    // --- Payments made out to suppliers ---
+    //
+    // Same reason: "supplier payment" does not say who pays whom. Here money
+    // leaves the business and goes to the supplier. Money coming in from
+    // customers lives under Invoicing → Payments.
+    supplierPayments: "Payments to suppliers",
+    supplierPayment: "Payment to supplier",
+    newPayment: "Record a payment to a supplier",
+    supplierPaymentsSubtitle:
+      "Money we pay out to suppliers to settle their bills.",
+    moneyOutDirection: "Money out",
+    paymentDate: "Payment date",
+    paymentMethod: "Payment method",
+    paymentReference: "Transaction number",
+    paymentReferenceHint: "Cheque number or internal transaction number.",
+    bankReference: "Bank / mobile money reference",
+    bankReferenceHint: "Transfer reference or mobile money confirmation code.",
+    bankAccount: "Account debited",
+    amountPaid: "Amount paid",
+    allocatedAmount: "Allocated",
+    unallocatedAmount: "Unallocated",
+    unallocatedHint: "This amount stays available to settle a later invoice.",
+    allocate: "Allocate",
+    allocateRemaining: "Allocate the remainder",
+    allocations: "Allocations",
+    paymentHistory: "Payment history",
+    noPayments: "No payments recorded.",
+    reversePayment: "Reverse payment",
+    reversed: "Reversed",
+    reversalReason: "Reversal reason",
+    paidBy: "Recorded by",
+    // --- Choosing what to settle ---
+    selectInvoices: "Invoices to settle",
+    settleOldestFirst: "Settle oldest first",
+    settleOldestFirstHint:
+      "The amount is spread automatically across open invoices, oldest due date first.",
+    chooseInvoices: "Choose invoices and amounts",
+    // --- Automatic allocation ---
+    autoAllocationHint:
+      "The amount is allocated automatically across open invoices, oldest due date first.",
+    enterAmountToPreview: "Enter an amount to see which invoices it settles.",
+    selectSupplierFirst: "Choose a supplier first.",
+    noOutstandingInvoicesOnAccount:
+      "This supplier has no open invoices. The payment will be recorded as credit on account.",
+    willBeSettled: "Settled",
+    willBePartlyPaid: "Part paid",
+    leftOnAccount:
+      "%{amount} will stay as credit on account, available for a later invoice.",
+    adjustAllocation: "Adjust allocation",
+    backToAutomatic: "Back to automatic allocation",
+    chooseInvoicesHint: "Set the amount to allocate to each invoice.",
+    outstandingInvoices: "Open invoices",
+    allInvoices: "All invoices",
+    settledInvoices: "Settled invoices",
+    noOutstandingInvoices: "This supplier has no open invoices.",
+    allocationExceedsPayment: "The allocated total exceeds the payment amount.",
+    remainingToAllocate: "Left to allocate",
+    // --- Balances ---
+    outstandingBalances: "Supplier balances",
+    outstandingBalance: "Outstanding",
+    totalOutstanding: "Total outstanding",
+    totalInvoiced: "Total invoiced",
+    totalPaid: "Total paid",
+    invoiceCount: "Invoices",
+    oldestDue: "Oldest due date",
+    overdueAmount: "Overdue amount",
+    noOutstanding: "No outstanding supplier balances.",
+  },
+  accounting: {
+    // --- Expenses ---
+    expenses: "Expenses",
+    expense: "Expense",
+    newExpense: "New expense",
+    editExpense: "Edit expense",
+    reference: "Reference",
+    category: "Category",
+    description: "Description",
+    descriptionHint: "In a few words, what this cost was for.",
+    optional: "Optional",
+    optionalHint: "Optional.",
+    optionalWithHint: "Optional. %{hint}",
+    notes: "Notes",
+    notesHint:
+      "Describe the expense fully: what it covered, why it was needed, who authorised it.",
+    expenseDate: "Expense date",
+    expenseDateHint: "When the cost was incurred.",
+    paidDate: "Date paid",
+    paidDateHint:
+      "When money actually left the business. Leave blank if it is not yet settled.",
+    amount: "Amount",
+    taxAmount: "VAT included",
+    netAmount: "Net of VAT",
+    payee: "Paid to",
+    payeeHint: "Landlord, utility company, contractor… who received the money.",
+    receiptNumber: "Receipt no.",
+    relatedSupplier: "Related supplier",
+    relatedSupplierHint:
+      "Only needed if the cost relates to a supplier on file.",
+    relatedOrder: "Related purchase order",
+    approve: "Approve",
+    markPaid: "Mark as paid",
+    cancelExpense: "Cancel expense",
+    unpaidOnly: "Unpaid only",
+    recordedBy: "Recorded by",
+    approvedBy: "Approved by",
+    // --- Categories ---
+    categories: "Expense categories",
+    newCategory: "New category",
+    categoryCode: "Code",
+    categoryName: "Name",
+    // Saying so up front, because the operator types one label and the other
+    // language appears without them doing anything.
+    otherLanguageHint:
+      "In your own language: the French version is translated automatically.",
+    inUse: "%{count} expense(s)",
+    activeCategory: "Active",
+    // --- Financial overview ---
+    overview: "Financial overview",
+    period: "Period",
+    moneyIn: "Money in",
+    moneyOut: "Money out",
+    result: "Result",
+    position: "Position",
+    grossRevenue: "Gross revenue",
+    salesTax: "VAT collected",
+    netRevenue: "Net revenue",
+    costOfGoodsSold: "Cost of goods sold",
+    grossProfit: "Gross profit",
+    grossMargin: "Gross margin",
+    operatingExpenses: "Operating expenses",
+    supplierPayments: "Supplier payments",
+    totalCashOutflow: "Total cash outflow",
+    unpaidExpenses: "Unpaid expenses",
+    operatingResult: "Operating result",
+    operatingMargin: "Operating margin",
+    outstandingPayables: "Supplier payables",
+    suppliersOwed: "Suppliers owed",
+    salesCount: "Sales",
+    // --- Reports ---
+    reports: "Accounting reports",
+    expensesByCategory: "Expenses by category",
+    supplierPaymentReport: "Supplier payment report",
+    outstandingBalancesReport: "Outstanding supplier balances",
+    cashOutflowReport: "Cash outflow",
+    ageing: "Ageing",
+    ageingCurrent: "Not yet due",
+    ageing1to30: "1-30 days",
+    ageing31to60: "31-60 days",
+    ageing61to90: "61-90 days",
+    ageingOver90: "Over 90 days",
+    shareOfTotal: "Share of total",
+    byMethod: "By payment method",
+    bySupplier: "By supplier",
+    bySource: "By source",
+    SUPPLIER_PAYMENTS: "Supplier payments",
+    EXPENSES: "Expenses",
+    reversedPayments: "%{count} reversed payment(s) in this period",
+    noExpenses: "No expenses in this period.",
+    noData: "No data for this period.",
+  },
   partners: {
     customerCode: "Customer code",
     businessName: "Business name",
@@ -1808,6 +2280,8 @@ export const en: Dictionary = {
     DISPOSED: "Disposed",
     DISCONTINUED: "Discontinued",
     SUSPENDED: "Suspended",
+    AWAITING_PAYMENT: "Awaiting payment",
+    RECORDED: "Recorded",
   },
   dosageForms: {
     TABLET: "Tablet",
@@ -1951,8 +2425,21 @@ export const en: Dictionary = {
     markAllRead: "Mark all as read",
     emptyTitle: "No notifications",
   },
+  machineTranslation: {
+    translate: "Translate",
+    translating: "Translating…",
+    showOriginal: "Show original",
+    machineTranslated: "Machine translation",
+    unavailable: "Translation unavailable",
+    originalIsAuthoritative: "The original text is authoritative.",
+  },
   permissions: {
     discountNotAllowed: "You do not have permission to apply a discount.",
+    discountOverLimit:
+      "A discount above the %{max}% ceiling needs a manager or administrator to authorise it.",
+    discountLimitHint: "Maximum discount allowed: %{max}%.",
+    editSaleNotAllowed: "You do not have permission to edit a sale.",
+    deleteSaleNotAllowed: "You do not have permission to delete a draft.",
     printReceiptNotAllowed: "You do not have permission to print receipts.",
     printInvoiceNotAllowed: "You do not have permission to print invoices.",
   },

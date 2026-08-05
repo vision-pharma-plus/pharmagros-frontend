@@ -112,6 +112,10 @@ export default function SalesPage() {
         columns={columns}
         rows={query.items}
         rowKey={(row) => row.id}
+        // Every sale opens, not just drafts: the detail screen is also where a
+        // confirmed sale is read and cancelled. What a draft additionally
+        // allows there is editing and deletion.
+        onRowClick={(row) => router.push(`/sales/${row.id}`)}
         loading={query.loading}
         error={query.error}
         onRetry={query.refetch}

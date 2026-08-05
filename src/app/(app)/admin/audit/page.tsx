@@ -4,6 +4,7 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
 import { DataTable, type Column } from "@/components/data-table";
+import { TranslatableText } from "@/components/translatable-text";
 import { Button } from "@/components/ui/button";
 import { Alert, Badge, Select } from "@/components/ui/primitives";
 import { api } from "@/lib/api/client";
@@ -105,7 +106,12 @@ export default function AuditLogPage() {
       header: t.audit.changes,
       render: (row) => (
         <div className="min-w-0 max-w-md">
-          {row.notes && <p className="truncate text-sm">{row.notes}</p>}
+          {/* Not truncated, unlike the changed-fields line below: the
+              translate control has to stay clickable, and a clipped audit
+              note is the one thing a reader most needs to read in full. */}
+          {row.notes && (
+            <TranslatableText inline text={row.notes} className="text-sm" />
+          )}
           {row.changed_fields.length > 0 && (
             <p className="truncate text-xs text-muted-foreground">
               {row.changed_fields.join(", ")}

@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Plus, Printer, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { EntityPicker } from "@/components/entity-picker";
 import { ReferenceSelect } from "@/components/reference-select";
@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FormPageSkeleton } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, printBlob } from "@/lib/api/client";
 import type {
@@ -35,7 +36,7 @@ import type {
   Sale,
   Warehouse,
 } from "@/lib/api/types";
-import { computeLine, money, priceExclVat } from "@/lib/format";
+import { computeLine, money, priceExclVat, priceInclVat } from "@/lib/format";
 import { translateError, translateErrorDetailed, useQuery } from "@/lib/hooks";
 import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
@@ -68,6 +69,17 @@ export default function NewSalePage() {
   const searchParams = useSearchParams();
   const can = useAuth((state) => state.can);
 
+  /**
+   * `?draft=<id>` reopens a saved draft for further editing.
+   *
+   * Editing a draft lands here rather than on a separate edit screen, because
+   * a draft *is* a sale part-way through being entered: the operator is
+   * resuming the same task they left, and the creation form is the one that
+   * knows how to do it. Everything they had entered is restored below, and
+   * saving updates that draft instead of creating a second one.
+   */
+  const draftId = searchParams.get("draft");
+
   const [customer, setCustomer] = useState<CustomerListItem | null>(null);
   const [warehouseId, setWarehouseId] = useState("");
   /**
@@ -94,6 +106,12 @@ export default function NewSalePage() {
   const [paymentReference, setPaymentReference] = useState("");
   const [amountTendered, setAmountTendered] = useState("");
 
+  /** True while a draft is being restored, so the form is not shown half-filled. */
+  const [loadingDraft, setLoadingDraft] = useState(Boolean(draftId));
+  /** Set once the draft is loaded, so saving updates it rather than creating. */
+  const [draftNumber, setDraftNumber] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
@@ -107,6 +125,83 @@ export default function NewSalePage() {
 
   const warehouses = useQuery<{ results: Warehouse[] }>("/inventory/warehouses/");
   const warehouseList = warehouses.data?.results ?? [];
+
+  /**
+   * Restore a saved draft into the form.
+   *
+   * Every field the operator entered comes back: customer, warehouse, sale
+   * type, reference, notes, and each line with its quantity, price, discount
+   * and VAT rate. They resume exactly where they left off.
+   *
+   * Two conversions matter. Prices are stored ex-VAT but this form works in
+   * the tax-inclusive figure shown at the counter, so each one is converted
+   * back through `priceInclVat` — feeding the stored value straight in would
+   * show a price lower than the one the operator originally typed, and
+   * re-saving would compound the error on every edit. Products are re-fetched
+   * as full records because the picker needs more than the id the sale line
+   * carries.
+   */
+  useEffect(() => {
+    if (!draftId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const sale = await api.get<Sale>(`/sales/sales/${draftId}/`);
+        if (cancelled) return;
+
+        if (sale.status !== "DRAFT") {
+          // Someone confirmed it in another tab, or the link is stale. Send
+          // the operator to the sale itself rather than silently offering an
+          // edit the server would refuse.
+          toast.error(t.sales.draftOnlyEditable, sale.sale_number);
+          router.replace(`/sales/${sale.id}`);
+          return;
+        }
+
+        const products = await api.get<{ results: MedicineListItem[] }>(
+          "/catalog/medicines/",
+          { ids: sale.lines.map((line) => line.product).join(","), page_size: 200 },
+        );
+        if (cancelled) return;
+
+        const byId = new Map(products.results.map((p) => [p.id, p]));
+
+        setDraftNumber(sale.sale_number);
+        setCustomer({
+          id: sale.customer,
+          customer_code: sale.customer_code,
+          business_name: sale.customer_name,
+        } as CustomerListItem);
+        setWarehouseId(sale.warehouse);
+        setSaleType(sale.sale_type === "CREDIT" ? "CREDIT" : "CASH");
+        setReference(sale.customer_order_reference);
+        setNotes(sale.notes);
+        setLines(
+          sale.lines.map((line) => ({
+            key: crypto.randomUUID(),
+            product: byId.get(line.product) ?? null,
+            quantity: line.quantity,
+            // Back to the counter (VAT-inclusive) price the operator typed.
+            unitPrice: priceInclVat(line.unit_price, line.tax_rate),
+            discountPercent: line.discount_percent,
+            taxRate: line.tax_rate,
+          })),
+        );
+      } catch (caught) {
+        if (!cancelled) {
+          setError(caught as ApiError);
+        }
+      } finally {
+        if (!cancelled) setLoadingDraft(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
 
   // Default to the flagged default warehouse rather than making the operator
   // choose on every single-site sale.
@@ -302,6 +397,49 @@ export default function NewSalePage() {
    */
   const printDenied = !can(closingDocument.permission);
 
+  /**
+   * Save without confirming: keep the sale as a draft and leave.
+   *
+   * The counterpart to resuming one. Nothing commercial happens — no stock
+   * moves and no document is raised — so this is safe to use as a "come back
+   * to it later" at any point that has a customer and at least one line.
+   */
+  const saveDraft = async () => {
+    if (!customer || validLines.length === 0) return;
+    setSavingDraft(true);
+    setError(null);
+
+    const payload = {
+      customer: customer.id,
+      warehouse: resolvedWarehouseId,
+      sale_type: saleType,
+      customer_order_reference: reference,
+      notes,
+      lines: validLines.map((line) => ({
+        product: line.product!.id,
+        quantity: line.quantity,
+        unit_price: line.unitPrice || undefined,
+        discount_percent: line.discountPercent || undefined,
+      })),
+    };
+
+    try {
+      const sale = draftId
+        ? await api.patch<Sale>(`/sales/sales/${draftId}/`, payload)
+        : await api.post<Sale>("/sales/sales/", payload);
+      toast.success(t.sales.draftSaved, sale.sale_number);
+      router.push(`/sales/${sale.id}`);
+    } catch (caught) {
+      const apiError = caught as ApiError;
+      setError(apiError);
+      toast.error(
+        translateErrorDetailed(apiError, t) ?? t.common.errorOccurred,
+      );
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const submit = async (
     creditOverrideReason?: string,
     options: { print?: boolean } = {},
@@ -313,7 +451,7 @@ export default function NewSalePage() {
     setError(null);
 
     try {
-      const sale = await api.post<Sale>("/sales/sales/", {
+      const payload = {
         customer: customer.id,
         warehouse: resolvedWarehouseId,
         sale_type: saleType,
@@ -325,7 +463,13 @@ export default function NewSalePage() {
           unit_price: line.unitPrice || undefined,
           discount_percent: line.discountPercent || undefined,
         })),
-      });
+      };
+
+      // An existing draft is updated in place, so confirming the sale the
+      // operator resumed does not leave the original behind as a duplicate.
+      const sale = draftId
+        ? await api.patch<Sale>(`/sales/sales/${draftId}/`, payload)
+        : await api.post<Sale>("/sales/sales/", payload);
 
       const confirmed = await api.post<Sale>(
         `/sales/sales/${sale.id}/confirm/`,
@@ -430,12 +574,25 @@ export default function NewSalePage() {
   // discard exactly the part the operator needs to act on.
   const errorMessage = translateErrorDetailed(error, t);
 
+  // Hold the form back until a reopened draft has been restored: a form that
+  // fills in field by field as requests land invites the operator to start
+  // typing into something that is about to be overwritten.
+  if (loadingDraft) {
+    return <FormPageSkeleton />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{t.nav.newSale}</h1>
-          <p className="text-sm text-muted-foreground">{t.nav.sales}</p>
+          <h1 className="text-2xl font-semibold">
+            {draftId ? t.sales.editDraft : t.nav.newSale}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {/* Naming the draft confirms which one was reopened, so an
+                operator resuming one of several is never in doubt. */}
+            {draftNumber ?? t.nav.sales}
+          </p>
         </div>
         <Button variant="outline" onClick={() => router.push("/sales")}>
           {t.common.cancel}
@@ -863,6 +1020,20 @@ export default function NewSalePage() {
                   onClick={() => void submit()}
                 >
                   {t.sales.confirmSale}
+                </Button>
+                {/* Save without confirming. Nothing commercial happens, so it
+                    needs only a customer and a line — not the full set of
+                    checks confirmation requires. */}
+                <Button
+                  className="w-full"
+                  variant="ghost"
+                  disabled={
+                    !customer || validLines.length === 0 || submitting || savingDraft
+                  }
+                  loading={savingDraft}
+                  onClick={() => void saveDraft()}
+                >
+                  {t.purchasing.saveDraft}
                 </Button>
               </div>
 

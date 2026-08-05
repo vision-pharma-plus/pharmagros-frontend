@@ -4,6 +4,7 @@ import { ArrowLeft, Download, FileText, Printer } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { TranslatableText } from "@/components/translatable-text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -209,7 +210,7 @@ export default function ReceiptDetailPage() {
 
       {data.is_cancelled && (
         <Alert variant="destructive" title={t.common.cancelled}>
-          {data.cancellation_reason}
+          <TranslatableText inline text={data.cancellation_reason} />
         </Alert>
       )}
 

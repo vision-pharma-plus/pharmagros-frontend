@@ -4,6 +4,7 @@ import { ArrowLeft, BadgeCheck, Pencil } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { TranslatableText } from "@/components/translatable-text";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -184,11 +185,14 @@ export default function SupplierDetailPage() {
             <DetailRow label={t.common.status} value={
               t.status[item.status as keyof typeof t.status] ?? item.status
             } />
-            <DetailRow label={t.common.notes} value={item.notes} />
+            <DetailRow
+              label={t.common.notes}
+              value={<TranslatableText inline text={item.notes} />}
+            />
             {item.approval_notes && (
               <DetailRow
                 label={t.partners.approvalNotes}
-                value={item.approval_notes}
+                value={<TranslatableText inline text={item.approval_notes} />}
               />
             )}
           </CardContent>

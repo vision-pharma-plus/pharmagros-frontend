@@ -125,13 +125,9 @@ export default function RoleDetailPage() {
             <CardTitle>{t.sections.generalInfo}</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-border">
-            <DetailRow label={`${t.catalog.name} (FR)`} value={item.name_fr} />
-            <DetailRow label={`${t.catalog.name} (EN)`} value={item.name_en} />
+            <DetailRow label={t.catalog.name} value={item.name} />
             <DetailRow label={t.admin.userCount} value={item.user_count} />
-            <DetailRow
-              label={t.catalog.description}
-              value={item.description_fr}
-            />
+            <DetailRow label={t.catalog.description} value={item.description} />
           </CardContent>
         </Card>
 

@@ -24,14 +24,15 @@ import { toast } from "@/components/ui/toast";
 import { ApiError, api, type Paginated } from "@/lib/api/client";
 import type { Permission, Role } from "@/lib/api/types";
 import { scrollToFirstError, translateError, useQuery } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useLocale, useTranslation } from "@/lib/i18n/provider";
 
+// One name, typed in whichever language the user works in. The model keeps a
+// French and an English column, but nobody should have to supply a
+// translation they do not have — the missing side is filled in on save.
 const schema = z.object({
   code: z.string().min(2, "field_required"),
-  name_fr: z.string().min(1, "field_required"),
-  name_en: z.string().min(1, "field_required"),
-  description_fr: z.string().optional(),
-  description_en: z.string().optional(),
+  name: z.string().min(1, "field_required"),
+  description: z.string().optional(),
   inherits_from: z.string().optional(),
   is_active: z.string(),
 });
@@ -40,6 +41,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function RoleForm({ role }: { role?: Role }) {
   const t = useTranslation();
+  const { locale } = useLocale();
   const router = useRouter();
   const [error, setError] = useState<ApiError | null>(null);
   const isEdit = Boolean(role);
@@ -61,10 +63,9 @@ export function RoleForm({ role }: { role?: Role }) {
     defaultValues: role
       ? {
           code: role.code,
-          name_fr: role.name_fr,
-          name_en: role.name_en,
-          description_fr: role.description_fr,
-          description_en: role.description_en,
+          name: role.name,
+          description:
+            locale === "en" ? role.description_en : role.description_fr,
           inherits_from: role.inherits_from ?? "",
           is_active: String(role.is_active),
         }
@@ -96,8 +97,14 @@ export function RoleForm({ role }: { role?: Role }) {
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
+    // Send the one label the user typed as their own language's column and
+    // leave the other blank; the model translates the missing side on save.
+    const { name, description, ...rest } = values;
+    const suffix = locale === "en" ? "en" : "fr";
     const payload = {
-      ...values,
+      ...rest,
+      [`name_${suffix}`]: name,
+      [`description_${suffix}`]: description ?? "",
       inherits_from: values.inherits_from || null,
       is_active: values.is_active === "true",
       permissions: selected,
@@ -186,19 +193,11 @@ export function RoleForm({ role }: { role?: Role }) {
             </Field>
 
             <Field
-              label={`${t.catalog.name} (FR)`}
+              label={t.catalog.name}
               required
-              error={fieldMessage(errors.name_fr?.message)}
+              error={fieldMessage(errors.name?.message)}
             >
-              <Input {...register("name_fr")} />
-            </Field>
-
-            <Field
-              label={`${t.catalog.name} (EN)`}
-              required
-              error={fieldMessage(errors.name_en?.message)}
-            >
-              <Input {...register("name_en")} />
+              <Input {...register("name")} />
             </Field>
 
             <Field label={t.admin.inheritsFrom}>
@@ -221,11 +220,8 @@ export function RoleForm({ role }: { role?: Role }) {
               </Select>
             </Field>
 
-            <Field label={`${t.catalog.description} (FR)`}>
-              <Textarea rows={2} {...register("description_fr")} />
-            </Field>
-            <Field label={`${t.catalog.description} (EN)`}>
-              <Textarea rows={2} {...register("description_en")} />
+            <Field label={t.catalog.description}>
+              <Textarea rows={2} {...register("description")} />
             </Field>
           </CardContent>
         </Card>

@@ -23,17 +23,16 @@ import {
   usePaginatedQuery,
   useUrlFilters,
 } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
 
 interface FormState {
   code: string;
-  // A warehouse name is a translated pair, as on categories and units. The
-  // serializer's `name` is read-only and resolved for the active language, so
-  // posting it created nothing and returned a validation error naming a field
-  // this dialog did not have.
-  name_fr: string;
-  name_en: string;
+  // One name, typed in whichever language the user works in. It is stored as
+  // a translated pair, as on categories and units, but `save()` fills in the
+  // side left blank — and the serializer's own `name` is read-only, so the
+  // payload has to name the language column explicitly.
+  name: string;
   address: string;
   city: string;
   is_default: boolean;
@@ -43,8 +42,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   code: "",
-  name_fr: "",
-  name_en: "",
+  name: "",
   address: "",
   city: "",
   is_default: false,
@@ -55,6 +53,7 @@ const EMPTY: FormState = {
 /** Reference data, edited in place — see the note on the categories screen. */
 export default function WarehousesPage() {
   const t = useTranslation();
+  const { locale } = useLocale();
   const can = useAuth((state) => state.can);
   const { filters, setFilter, clearFilters, isFiltered } = useUrlFilters({
     search: "",
@@ -85,8 +84,7 @@ export default function WarehousesPage() {
     setEditing(row);
     setForm({
       code: row.code,
-      name_fr: row.name_fr,
-      name_en: row.name_en,
+      name: row.name,
       address: row.address,
       city: row.city,
       is_default: row.is_default,
@@ -100,11 +98,10 @@ export default function WarehousesPage() {
   const save = async () => {
     setSaving(true);
     setError(null);
+    const suffix = locale === "en" ? "en" : "fr";
     const payload: Record<string, unknown> = {
       code: form.code,
-      name_fr: form.name_fr,
-      // Mirrored so a user with no English translation to hand is not blocked.
-      name_en: form.name_en || form.name_fr,
+      [`name_${suffix}`]: form.name,
       address: form.address,
       is_default: form.is_default,
       is_cold_chain: form.is_cold_chain,
@@ -292,20 +289,11 @@ export default function WarehousesPage() {
               />
             </Field>
 
-            <Field label={`${t.catalog.name} (FR)`} required>
+            <Field label={t.catalog.name} required>
               <Input
-                value={form.name_fr}
+                value={form.name}
                 onChange={(event) =>
-                  setForm({ ...form, name_fr: event.target.value })
-                }
-              />
-            </Field>
-
-            <Field label={`${t.catalog.name} (EN)`}>
-              <Input
-                value={form.name_en}
-                onChange={(event) =>
-                  setForm({ ...form, name_en: event.target.value })
+                  setForm({ ...form, name: event.target.value })
                 }
               />
             </Field>
@@ -374,7 +362,7 @@ export default function WarehousesPage() {
             <Button
               onClick={save}
               loading={saving}
-              disabled={!form.code.trim() || !form.name_fr.trim()}
+              disabled={!form.code.trim() || !form.name.trim()}
             >
               {t.common.save}
             </Button>

@@ -34,7 +34,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { ApiError, api, type Paginated } from "@/lib/api/client";
 import { translateError } from "@/lib/hooks";
-import { useTranslation } from "@/lib/i18n/provider";
+import { useLocale, useTranslation } from "@/lib/i18n/provider";
 import {
   buildPayload,
   initialValues,
@@ -66,6 +66,7 @@ export function QuickCreateDialog({
   initialLabel,
 }: QuickCreateDialogProps) {
   const t = useTranslation();
+  const { locale } = useLocale();
   const can = useAuth((state) => state.can);
 
   const [values, setValues] = useState(() => initialValues(resource));
@@ -212,7 +213,7 @@ export function QuickCreateDialog({
 
       const created = await api.post<ReferenceRecord>(
         resource.path,
-        buildPayload(resource, values),
+        buildPayload(resource, values, locale),
       );
 
       toast.success(t.toasts.created, resource.getLabel(created));

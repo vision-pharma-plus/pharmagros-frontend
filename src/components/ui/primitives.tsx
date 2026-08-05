@@ -505,3 +505,67 @@ export function EmptyState({
     </div>
   );
 }
+
+/**
+ * A determinate progress bar with an optional percentage label.
+ *
+ * `value` is a percentage, accepted as a string because that is how the
+ * backend sends decimals — parsing it here keeps the precision rule ("never
+ * put money or rates through `number` on the way in") at one boundary.
+ *
+ * The bar is clamped to 0-100 for width purposes while the *label* shows the
+ * real figure, so an over-settled invoice reads as "104 %" against a full bar
+ * rather than silently overflowing its track.
+ */
+export function Progress({
+  value,
+  label,
+  tone = "default",
+  className,
+  showValue = true,
+}: {
+  value: string | number;
+  label?: string;
+  tone?: "default" | "success" | "warning" | "danger";
+  className?: string;
+  showValue?: boolean;
+}) {
+  const numeric = typeof value === "number" ? value : Number.parseFloat(value);
+  const safe = Number.isFinite(numeric) ? numeric : 0;
+  const width = Math.min(Math.max(safe, 0), 100);
+
+  const tones: Record<string, string> = {
+    default: "bg-primary",
+    success: "bg-emerald-600 dark:bg-emerald-500",
+    warning: "bg-amber-500",
+    danger: "bg-destructive",
+  };
+
+  return (
+    <div className={cn("w-full", className)}>
+      {(label || showValue) && (
+        <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+          {label && <span className="text-muted-foreground">{label}</span>}
+          {showValue && (
+            <span className="font-medium tabular-nums">
+              {safe.toFixed(safe % 1 === 0 ? 0 : 1)}%
+            </span>
+          )}
+        </div>
+      )}
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={Math.round(safe)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div
+          className={cn("h-full rounded-full transition-all", tones[tone])}
+          style={{ width: `${width}%` }}
+        />
+      </div>
+    </div>
+  );
+}
