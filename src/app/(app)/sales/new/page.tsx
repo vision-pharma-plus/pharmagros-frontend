@@ -61,6 +61,39 @@ const emptyLine = (): DraftLine => ({
   taxRate: "0",
 });
 
+/**
+ * Ceiling on a manually entered discount, mirroring the server's
+ * MAX_MANUAL_DISCOUNT_PERCENT.
+ *
+ * Duplicated rather than fetched because it is a policy constant, not
+ * per-tenant configuration: a round trip to learn it would delay the first
+ * paint of the field it governs. The server enforces the same number in
+ * `apps.sales.services._check_discount_limit`, so a stale copy here is a
+ * cosmetic problem, never a way to book a larger discount than policy allows.
+ */
+const MAX_DISCOUNT_PERCENT = 10;
+
+/**
+ * Hold a typed discount at the ceiling.
+ *
+ * Clamping rather than rejecting: `max` on a number input constrains the
+ * spinner but not the keyboard, so a pasted or typed 50 would otherwise sit in
+ * the field looking accepted, drive the totals preview, and be refused only on
+ * submit. Bringing it down to 10 as it is typed keeps what the operator sees
+ * equal to what the server will accept.
+ *
+ * An empty field is preserved as empty so the input can be cleared; partial
+ * input that is not yet a number ("1.") is passed through untouched.
+ */
+const clampDiscount = (value: string): string => {
+  if (value === "") return value;
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return value;
+  if (parsed > MAX_DISCOUNT_PERCENT) return String(MAX_DISCOUNT_PERCENT);
+  if (parsed < 0) return "0";
+  return value;
+};
+
 export default function NewSalePage() {
   const t = useTranslation();
   const fmt = useFormat();
@@ -263,6 +296,15 @@ export default function NewSalePage() {
   };
 
   const canDiscount = can("sales.apply_discount");
+  const maxDiscountLabel = String(MAX_DISCOUNT_PERCENT);
+  const discountLimitHint = t.permissions.discountLimitHint.replace(
+    "%{max}",
+    maxDiscountLabel,
+  );
+  const discountCappedMessage = t.permissions.discountOverLimit.replace(
+    "%{max}",
+    maxDiscountLabel,
+  );
 
   const validLines = lines.filter(
     (line) => line.product && line.quantity && Number(line.quantity) > 0,
@@ -753,17 +795,19 @@ export default function NewSalePage() {
                       <Field
                         label={`${t.sales.discount} %`}
                         // A greyed-out field with no explanation reads as
-                        // broken; say plainly that it is a permission.
+                        // broken; say plainly that it is a permission. When it
+                        // is usable, name the ceiling instead — an operator
+                        // should meet the limit before hitting it, not after.
                         hint={
                           canDiscount
-                            ? undefined
+                            ? discountLimitHint
                             : t.permissions.discountNotAllowed
                         }
                       >
                         <Input
                           type="number"
                           min="0"
-                          max="100"
+                          max={MAX_DISCOUNT_PERCENT}
                           step="0.01"
                           inputMode="decimal"
                           value={line.discountPercent}
@@ -771,14 +815,19 @@ export default function NewSalePage() {
                           disabled={!canDiscount}
                           title={
                             canDiscount
-                              ? undefined
+                              ? discountLimitHint
                               : t.permissions.discountNotAllowed
                           }
-                          onChange={(event) =>
-                            updateLine(line.key, {
-                              discountPercent: event.target.value,
-                            })
-                          }
+                          onChange={(event) => {
+                            const clamped = clampDiscount(event.target.value);
+                            // Only warn when the entry was actually pulled
+                            // down; a toast on every keystroke inside the
+                            // allowed range would be noise.
+                            if (clamped !== event.target.value) {
+                              toast.error(discountCappedMessage);
+                            }
+                            updateLine(line.key, { discountPercent: clamped });
+                          }}
                         />
                       </Field>
                     </div>

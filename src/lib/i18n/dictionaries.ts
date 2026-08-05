@@ -1150,10 +1150,10 @@ export const fr = {
   },
   permissions: {
     discountNotAllowed: "Vous n'avez pas le droit d'appliquer une remise.",
-    // Nomme le plafond et qui peut y déroger : un opérateur qui bute dessus
-    // doit savoir à qui s'adresser, pas seulement que c'est refusé.
+    // Nomme le plafond : le message ne promet aucune dérogation, car il n'en
+    // existe pas — la valeur saisie est simplement ramenée au maximum.
     discountOverLimit:
-      "Remise supérieure au plafond de %{max} %. Un responsable ou un administrateur doit l'autoriser.",
+      "Remise plafonnée à %{max} %, le maximum autorisé.",
     discountLimitHint: "Remise maximale autorisée : %{max} %.",
     editSaleNotAllowed: "Vous n'avez pas le droit de modifier une vente.",
     deleteSaleNotAllowed: "Vous n'avez pas le droit de supprimer un brouillon.",
@@ -2436,7 +2436,7 @@ export const en: Dictionary = {
   permissions: {
     discountNotAllowed: "You do not have permission to apply a discount.",
     discountOverLimit:
-      "A discount above the %{max}% ceiling needs a manager or administrator to authorise it.",
+      "Discount capped at %{max}%, the maximum allowed.",
     discountLimitHint: "Maximum discount allowed: %{max}%.",
     editSaleNotAllowed: "You do not have permission to edit a sale.",
     deleteSaleNotAllowed: "You do not have permission to delete a draft.",
