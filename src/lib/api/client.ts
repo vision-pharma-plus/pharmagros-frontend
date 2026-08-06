@@ -15,13 +15,46 @@
  *     the machine code. Screens branch on `code`, never on message text.
  */
 
-import { getStoredLocale } from "@/lib/i18n/provider";
-
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 const ACCESS_TOKEN_KEY = "pharmagros.access";
 const REFRESH_TOKEN_KEY = "pharmagros.refresh";
+const LOCALE_STORAGE_KEY = "pharmagros.locale";
+
+/**
+ * Reads the persisted locale for the `X-Language` header.
+ *
+ * Deliberately duplicated from `lib/i18n/provider` rather than imported: the
+ * provider tree pulls this module back in, and the resulting import cycle is
+ * only survivable while every use stays deferred to request time. Reading the
+ * one key directly costs nothing and removes the cycle entirely.
+ */
+function requestLocale(): string {
+  if (typeof window === "undefined") return "fr";
+  try {
+    const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    return stored === "fr" || stored === "en" ? stored : "fr";
+  } catch {
+    // Private browsing can refuse storage; the default locale still applies.
+    return "fr";
+  }
+}
+
+/**
+ * Error codes meaning the session is gone server-side and no retry will help.
+ *
+ * The backend distinguishes these deliberately (`StatefulJWTAuthentication`):
+ * a session revoked from another device, or one whose row was pruned, arrives
+ * as a 401 that refreshing cannot fix. Treating them as ordinary 401s left the
+ * client refreshing against a dead session and the UI still believing it was
+ * authenticated.
+ */
+const DEAD_SESSION_CODES = new Set([
+  "session_not_found",
+  "session_revoked",
+  "account_suspended",
+]);
 
 export interface ApiErrorPayload {
   code: string;
@@ -194,7 +227,7 @@ async function request<T>(
   const headers: Record<string, string> = {
     // Tells the backend which language to render server-side messages in,
     // so validation errors and PDFs follow the user's live selection.
-    "X-Language": getStoredLocale(),
+    "X-Language": requestLocale(),
   };
 
   if (body !== undefined && !(body instanceof FormData)) {
@@ -225,12 +258,25 @@ async function request<T>(
     });
   }
 
-  // Refresh and replay exactly once, so a genuinely dead session cannot loop.
-  if (response.status === 401 && !skipAuth && !isRetry) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      return request<T>(path, options, true);
+  if (response.status === 401 && !skipAuth) {
+    // Read the body before deciding: a session revoked from another device, or
+    // one whose row was pruned, cannot be refreshed back into life. Retrying
+    // those burns the refresh token and leaves the user on a broken screen.
+    const error = await parseError(response);
+    if (DEAD_SESSION_CODES.has(error.code)) {
+      tokens.clear();
+      onSessionExpired?.();
+      throw error;
     }
+
+    // Refresh and replay exactly once, so a genuinely dead session cannot loop.
+    if (!isRetry) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        return request<T>(path, options, true);
+      }
+    }
+
     tokens.clear();
     onSessionExpired?.();
     throw new ApiError(401, {
@@ -294,6 +340,13 @@ export const api = {
     );
     return response.blob();
   },
+
+  /** Changing your own password; revokes every session server-side. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ detail: string }>("/auth/password/change/", {
+      method: "POST",
+      body: { current_password: currentPassword, new_password: newPassword },
+    }),
 
   /** Login is the one call that must not carry a stale bearer token. */
   login: (email: string, password: string) =>

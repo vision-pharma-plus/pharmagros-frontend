@@ -19,6 +19,16 @@ interface AuthState {
   status: "idle" | "loading" | "authenticated" | "unauthenticated";
   error: string | null;
 
+  /**
+   * Set when an administrator has forced a password change.
+   *
+   * The credentials are valid and the tokens are real, so the session is
+   * genuinely authenticated — but every screen has to funnel the user to
+   * `/change-password` until this clears, because the backend rejects the
+   * rest of the API until the password is changed.
+   */
+  mustChangePassword: boolean;
+
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loadSession: () => Promise<void>;
@@ -34,13 +44,19 @@ export const useAuth = create<AuthState>((set, get) => ({
   user: null,
   status: "idle",
   error: null,
+  mustChangePassword: false,
 
   login: async (email, password) => {
     set({ status: "loading", error: null });
     try {
       const data = await api.login(email, password);
       tokens.set(data.access, data.refresh);
-      set({ user: data.user as User, status: "authenticated", error: null });
+      set({
+        user: data.user as User,
+        status: "authenticated",
+        error: null,
+        mustChangePassword: Boolean(data.must_change_password),
+      });
     } catch (error) {
       const code = error instanceof ApiError ? error.code : "unknown_error";
       set({ status: "unauthenticated", error: code, user: null });
@@ -58,7 +74,12 @@ export const useAuth = create<AuthState>((set, get) => ({
       // ignored
     } finally {
       tokens.clear();
-      set({ user: null, status: "unauthenticated", error: null });
+      set({
+        user: null,
+        status: "unauthenticated",
+        error: null,
+        mustChangePassword: false,
+      });
     }
   },
 
@@ -70,7 +91,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ status: "loading" });
     try {
       const user = await api.get<User>("/auth/me/");
-      set({ user, status: "authenticated" });
+      // Restored from the user record rather than remembered client-side, so
+      // reloading the page cannot skip a forced password change.
+      set({
+        user,
+        status: "authenticated",
+        mustChangePassword: Boolean(user.must_change_password),
+      });
     } catch {
       tokens.clear();
       set({ user: null, status: "unauthenticated" });
@@ -113,6 +140,12 @@ export const useAuth = create<AuthState>((set, get) => ({
  */
 export function initAuthBridge(): void {
   setSessionExpiredHandler(() => {
-    useAuth.setState({ user: null, status: "unauthenticated" });
+    // Tokens are already cleared by the client at this point; this is what
+    // moves the UI off an authenticated screen it can no longer serve.
+    useAuth.setState({
+      user: null,
+      status: "unauthenticated",
+      mustChangePassword: false,
+    });
   });
 }
