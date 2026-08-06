@@ -20,12 +20,21 @@ export default function AppLayout({
 }) {
   const router = useRouter();
   const status = useAuth((state) => state.status);
+  const mustChangePassword = useAuth((state) => state.mustChangePassword);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+    // Catches the user who reaches an app URL directly while flagged — the
+    // backend would reject every request this shell makes.
+    if (status === "authenticated" && mustChangePassword) {
+      router.replace("/change-password");
+    }
+  }, [status, mustChangePassword, router]);
 
-  if (status !== "authenticated") {
+  if (status !== "authenticated" || mustChangePassword) {
     // The shell silhouette rather than a centred card: the sidebar, the
     // topbar and the content well all land in place, so authenticating does
     // not rebuild the page around the user.

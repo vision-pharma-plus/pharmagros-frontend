@@ -33,7 +33,7 @@ type FormValues = z.infer<typeof schema>;
 export default function LoginPage() {
   const t = useTranslation();
   const router = useRouter();
-  const { login, status, error, clearError } = useAuth();
+  const { login, status, error, clearError, mustChangePassword } = useAuth();
 
   const {
     register,
@@ -42,14 +42,19 @@ export default function LoginPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/dashboard");
-  }, [status, router]);
+    if (status !== "authenticated") return;
+    // A forced password change takes precedence: the rest of the API is closed
+    // to this session until it is done, so the dashboard would only render
+    // errors.
+    router.replace(mustChangePassword ? "/change-password" : "/dashboard");
+  }, [status, mustChangePassword, router]);
 
   const onSubmit = async (values: FormValues) => {
     clearError();
     try {
       await login(values.email, values.password);
-      router.replace("/dashboard");
+      // The effect above handles the redirect once the store settles, so the
+      // destination is decided in one place rather than two.
     } catch {
       // The store holds the error code; nothing to do here.
     }
