@@ -23,15 +23,16 @@ import {
   CardTitle,
   Field,
   Input,
+  PageError,
   Skeleton,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  statusVariant,
 } from "@/components/ui/primitives";
 import {
   DetailPageSkeleton,
@@ -152,9 +153,16 @@ export default function MedicineDetailPage() {
 
   if (medicine.error || !medicine.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(medicine.error, t)}
-      </Alert>
+      <PageError
+        error={medicine.error}
+        message={translateError(medicine.error, t)}
+        onRetry={medicine.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

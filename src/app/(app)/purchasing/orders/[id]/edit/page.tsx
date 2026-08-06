@@ -3,7 +3,10 @@
 import { useParams } from "next/navigation";
 
 import { OrderForm } from "@/app/(app)/purchasing/orders/order-form";
-import { Alert } from "@/components/ui/primitives";
+import {
+  Alert,
+  PageError,
+} from "@/components/ui/primitives";
 import { FormPageSkeleton } from "@/components/ui/skeletons";
 import type { PurchaseOrder } from "@/lib/api/types";
 import { translateError, useQuery } from "@/lib/hooks";
@@ -21,9 +24,16 @@ export default function EditPurchaseOrderPage() {
 
   if (order.error || !order.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(order.error, t)}
-      </Alert>
+      <PageError
+        error={order.error}
+        message={translateError(order.error, t)}
+        onRetry={order.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

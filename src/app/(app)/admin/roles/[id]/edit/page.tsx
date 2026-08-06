@@ -2,7 +2,11 @@
 
 import { useParams } from "next/navigation";
 
-import { Alert, Skeleton } from "@/components/ui/primitives";
+import {
+  Alert,
+  PageError,
+  Skeleton,
+} from "@/components/ui/primitives";
 import {
   FormCardSkeleton,
   PermissionListCardSkeleton,
@@ -42,9 +46,16 @@ export default function EditRolePage() {
 
   if (role.error || !role.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(role.error, t)}
-      </Alert>
+      <PageError
+        error={role.error}
+        message={translateError(role.error, t)}
+        onRetry={role.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

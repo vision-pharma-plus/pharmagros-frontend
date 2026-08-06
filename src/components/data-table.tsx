@@ -4,9 +4,9 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Alert,
   EmptyState,
   Input,
+  PageError,
   Skeleton,
   TBody,
   TD,
@@ -104,14 +104,15 @@ export function DataTable<T>({
       )}
 
       {errorMessage ? (
-        <Alert variant="destructive" title={t.common.errorOccurred}>
-          <p className="mb-3">{errorMessage}</p>
-          {onRetry && (
-            <Button size="sm" variant="outline" onClick={onRetry}>
-              {t.common.retry}
-            </Button>
-          )}
-        </Alert>
+        <PageError
+          error={error}
+          message={errorMessage}
+          onRetry={onRetry}
+          title={t.common.errorOccurred}
+          retryLabel={t.common.retry}
+          deniedTitle={t.common.accessDeniedTitle}
+          deniedBody={t.common.accessDeniedBody}
+        />
       ) : (
         <div className="rounded-lg border border-border bg-card">
           {loading ? (

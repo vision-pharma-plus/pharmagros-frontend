@@ -23,14 +23,15 @@ import {
   CardHeader,
   CardTitle,
   Field,
+  PageError,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  statusVariant,
 } from "@/components/ui/primitives";
 import { DetailPageSkeleton } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
@@ -123,9 +124,15 @@ export default function SaleDetailPage() {
   if (sale.loading) return <DetailPageSkeleton />;
   if (sale.error || !data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {sale.error ? translateError(sale.error, t) : t.errors.not_found}
-      </Alert>
+      <PageError
+        error={sale.error}
+        message={sale.error ? translateError(sale.error, t) : t.errors.not_found}
+        onRetry={sale.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+      />
     );
   }
 

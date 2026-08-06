@@ -8,6 +8,7 @@
  */
 
 import { cva, type VariantProps } from "class-variance-authority";
+import { Lock } from "lucide-react";
 import {
   cloneElement,
   forwardRef,
@@ -20,6 +21,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -468,6 +470,88 @@ export function Alert({
       {title && <p className="mb-1 font-semibold">{title}</p>}
       {children}
     </div>
+  );
+}
+
+/**
+ * A page that could not be loaded.
+ *
+ * Two failures arrive through the same channel but mean different things to
+ * the person reading them. A refusal (`permission_denied`) is not a fault:
+ * nothing is broken, retrying will fail identically, and the only useful move
+ * is to leave. A fault (network, server, timeout) may well clear on a second
+ * attempt. Presenting both as a red "an error occurred" box with a Retry
+ * button teaches users to hammer Retry against a wall.
+ *
+ * So the refusal gets a calm, centred state with a way out, and everything
+ * else keeps the destructive alert and its retry.
+ *
+ * Takes the `ApiError` rather than a translated string because the branch is
+ * on `code` — screens must never match on message text, which changes with
+ * the active language.
+ */
+export function PageError({
+  error,
+  message,
+  onRetry,
+  title,
+  retryLabel,
+  deniedTitle,
+  deniedBody,
+  homeAction,
+  notFoundMessage,
+}: {
+  /** The failure itself; `code` decides which of the two states renders. */
+  error: { code: string } | null | undefined;
+  /** Already translated, since translation lives outside this module. */
+  message: string | null;
+  onRetry?: () => void;
+  title: string;
+  retryLabel: string;
+  deniedTitle: string;
+  deniedBody: string;
+  /** Rendered under the refusal copy — typically a link somewhere usable. */
+  homeAction?: React.ReactNode;
+  /**
+   * Shown when the query returned neither data nor an error — a record that
+   * is simply not there. Without it those screens render an empty box.
+   */
+  notFoundMessage?: string;
+  className?: string;
+}) {
+  // A detail page reaches here either because the request failed or because
+  // it came back empty; the second case has no `error` to describe, so it
+  // falls back to "not found" rather than rendering nothing at all.
+  const text = message ?? notFoundMessage ?? null;
+  if (!text) return null;
+
+  if (error?.code === "permission_denied") {
+    return (
+      <div
+        // `status`, not `alert`: being shown a door one cannot open is not an
+        // emergency, and it does not interrupt what the user was saying.
+        role="status"
+        className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center"
+      >
+        <div className="rounded-full bg-muted p-3 text-muted-foreground">
+          <Lock className="h-6 w-6" />
+        </div>
+        <p className="text-base font-semibold">{deniedTitle}</p>
+        <p className="max-w-md text-sm text-muted-foreground">{deniedBody}</p>
+        {homeAction}
+      </div>
+    );
+  }
+
+  return (
+    <Alert variant="destructive" title={title}>
+      <p className="mb-3">{text}</p>
+      {onRetry && (
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          {retryLabel}
+        </Button>
+      )}
+    </Alert>
   );
 }
 

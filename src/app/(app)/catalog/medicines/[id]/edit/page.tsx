@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { Alert } from "@/components/ui/primitives";
+import { PageError } from "@/components/ui/primitives";
 import { FormPageSkeleton } from "@/components/ui/skeletons";
 import type { Medicine } from "@/lib/api/types";
 import { translateError, useQuery } from "@/lib/hooks";
@@ -22,9 +22,16 @@ export default function EditMedicinePage() {
 
   if (medicine.error || !medicine.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(medicine.error, t)}
-      </Alert>
+      <PageError
+        error={medicine.error}
+        message={translateError(medicine.error, t)}
+        onRetry={medicine.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

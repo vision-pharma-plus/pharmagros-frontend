@@ -57,6 +57,10 @@ export const fr = {
     errorOccurred: "Une erreur est survenue",
     retry: "Réessayer",
     unsavedChanges: "Modifications non enregistrées",
+    accessDeniedTitle: "Accès non autorisé",
+    accessDeniedBody:
+      "Votre rôle ne donne pas accès à cette page. Si vous pensez que c'est une erreur, contactez votre administrateur.",
+    backToSafety: "Retour à l'accueil",
   },
   nav: {
     dashboard: "Tableau de bord",
@@ -1374,6 +1378,10 @@ export const en: Dictionary = {
     errorOccurred: "An error occurred",
     retry: "Retry",
     unsavedChanges: "Unsaved changes",
+    accessDeniedTitle: "Access not allowed",
+    accessDeniedBody:
+      "Your role does not give you access to this page. If you think this is a mistake, contact your administrator.",
+    backToSafety: "Back to home",
   },
   nav: {
     dashboard: "Dashboard",

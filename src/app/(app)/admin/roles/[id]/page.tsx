@@ -11,6 +11,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  PageError,
   Skeleton,
 } from "@/components/ui/primitives";
 import {
@@ -71,9 +72,16 @@ export default function RoleDetailPage() {
 
   if (role.error || !role.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(role.error, t)}
-      </Alert>
+      <PageError
+        error={role.error}
+        message={translateError(role.error, t)}
+        onRetry={role.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

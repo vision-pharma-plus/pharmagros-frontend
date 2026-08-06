@@ -23,13 +23,14 @@ import {
   CardHeader,
   CardTitle,
   Field,
+  PageError,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
 } from "@/components/ui/primitives";
 import {
   PageHeaderSkeleton,
@@ -142,9 +143,15 @@ export default function ReceiptDetailPage() {
   const data = receipt.data;
   if (!data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(receipt.error, t)}
-      </Alert>
+      <PageError
+        error={receipt.error}
+        message={translateError(receipt.error, t)}
+        onRetry={receipt.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+      />
     );
   }
 

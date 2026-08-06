@@ -26,7 +26,6 @@ import {
 
 import { Button } from "@/components/ui/button";
 import {
-  Alert,
   Card,
   CardContent,
   CardHeader,
@@ -34,6 +33,7 @@ import {
   EmptyState,
   Field,
   Input,
+  PageError,
   Skeleton,
   TBody,
   TD,
@@ -228,13 +228,18 @@ export default function DashboardPage() {
   const error = translateError(kpis.error, t);
 
   if (error) {
+    // No "back to home" action here: this page *is* home, so the link would
+    // point at itself. The sidebar remains the way out.
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        <p className="mb-3">{error}</p>
-        <Button size="sm" variant="outline" onClick={kpis.refetch}>
-          {t.common.retry}
-        </Button>
-      </Alert>
+      <PageError
+        error={kpis.error}
+        message={error}
+        onRetry={kpis.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+      />
     );
   }
 

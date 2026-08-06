@@ -22,14 +22,15 @@ import {
   CardTitle,
   Field,
   Input,
+  PageError,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  statusVariant,
 } from "@/components/ui/primitives";
 import {
   DetailPageSkeleton,
@@ -122,9 +123,16 @@ export default function CustomerDetailPage() {
 
   if (customer.error || !customer.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(customer.error, t)}
-      </Alert>
+      <PageError
+        error={customer.error}
+        message={translateError(customer.error, t)}
+        onRetry={customer.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

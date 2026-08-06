@@ -21,17 +21,18 @@ import {
   CardHeader,
   CardTitle,
   Field,
+  fiscalVariant,
   Input,
+  PageError,
   Select,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  fiscalVariant,
-  statusVariant,
 } from "@/components/ui/primitives";
 import {
   PageHeaderSkeleton,
@@ -211,9 +212,16 @@ export default function InvoiceDetailPage() {
 
   if (invoice.error || !invoice.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(invoice.error, t)}
-      </Alert>
+      <PageError
+        error={invoice.error}
+        message={translateError(invoice.error, t)}
+        onRetry={invoice.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

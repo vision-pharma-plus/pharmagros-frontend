@@ -22,15 +22,16 @@ import {
   CardHeader,
   CardTitle,
   Field,
+  PageError,
   Progress,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  statusVariant,
 } from "@/components/ui/primitives";
 import { DetailPageSkeleton } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
@@ -100,9 +101,15 @@ export default function SupplierInvoiceDetailPage() {
   if (invoice.loading) return <DetailPageSkeleton />;
   if (invoice.error || !data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {invoice.error ? translateError(invoice.error, t) : t.errors.not_found}
-      </Alert>
+      <PageError
+        error={invoice.error}
+        message={invoice.error ? translateError(invoice.error, t) : t.errors.not_found}
+        onRetry={invoice.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+      />
     );
   }
 

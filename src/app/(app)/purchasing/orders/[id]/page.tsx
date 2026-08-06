@@ -22,14 +22,15 @@ import {
   CardHeader,
   CardTitle,
   Field,
+  PageError,
+  statusVariant,
+  Table,
   TBody,
   TD,
+  Textarea,
   TH,
   THead,
   TR,
-  Table,
-  Textarea,
-  statusVariant,
 } from "@/components/ui/primitives";
 import {
   DetailPageSkeleton,
@@ -118,9 +119,16 @@ export default function PurchaseOrderDetailPage() {
 
   if (order.error || !order.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(order.error, t)}
-      </Alert>
+      <PageError
+        error={order.error}
+        message={translateError(order.error, t)}
+        onRetry={order.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

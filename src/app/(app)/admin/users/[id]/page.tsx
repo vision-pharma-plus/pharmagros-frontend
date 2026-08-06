@@ -23,13 +23,14 @@ import {
   CardTitle,
   Field,
   Input,
+  PageError,
   Skeleton,
+  Table,
   TBody,
   TD,
   TH,
   THead,
   TR,
-  Table,
 } from "@/components/ui/primitives";
 import {
   DetailCardSkeleton,
@@ -151,9 +152,16 @@ export default function UserDetailPage() {
 
   if (user.error || !user.data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {translateError(user.error, t)}
-      </Alert>
+      <PageError
+        error={user.error}
+        message={translateError(user.error, t)}
+        onRetry={user.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+        notFoundMessage={t.errors.not_found}
+      />
     );
   }
 

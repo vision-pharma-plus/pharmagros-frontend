@@ -23,9 +23,10 @@ import {
   CardTitle,
   Field,
   Input,
+  PageError,
   Select,
-  Textarea,
   statusVariant,
+  Textarea,
 } from "@/components/ui/primitives";
 import { DetailPageSkeleton } from "@/components/ui/skeletons";
 import { toast } from "@/components/ui/toast";
@@ -110,9 +111,15 @@ export default function ExpenseDetailPage() {
   if (expense.loading) return <DetailPageSkeleton />;
   if (expense.error || !data) {
     return (
-      <Alert variant="destructive" title={t.common.errorOccurred}>
-        {expense.error ? translateError(expense.error, t) : t.errors.not_found}
-      </Alert>
+      <PageError
+        error={expense.error}
+        message={expense.error ? translateError(expense.error, t) : t.errors.not_found}
+        onRetry={expense.refetch}
+        title={t.common.errorOccurred}
+        retryLabel={t.common.retry}
+        deniedTitle={t.common.accessDeniedTitle}
+        deniedBody={t.common.accessDeniedBody}
+      />
     );
   }
 
