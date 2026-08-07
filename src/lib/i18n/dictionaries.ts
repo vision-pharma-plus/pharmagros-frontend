@@ -1299,6 +1299,11 @@ export const fr = {
       "Une erreur inattendue est survenue. Contactez le support.",
     network_error:
       "Impossible de joindre le serveur. Vérifiez votre connexion.",
+    // Le serveur renvoie un délai brut en secondes ("Expected available in
+    // 2932 seconds"), qui n'a de sens pour personne au comptoir. Le code est
+    // traduit ici pour que l'écran explique quoi faire plutôt que de compter.
+    throttled:
+      "Trop de requêtes en peu de temps. Patientez quelques minutes avant de réessayer.",
   },
 } as const;
 
@@ -2574,6 +2579,8 @@ export const en: Dictionary = {
     validation_error: "The submitted data is invalid.",
     internal_error: "An unexpected error occurred. Please contact support.",
     network_error: "Cannot reach the server. Check your connection.",
+    throttled:
+      "Too many requests in a short time. Wait a few minutes and try again.",
   },
 };
 

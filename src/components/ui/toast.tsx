@@ -14,7 +14,7 @@ import { CheckCircle2, Info, TriangleAlert, X, XCircle } from "lucide-react";
 import { create } from "zustand";
 
 import { useTranslation } from "@/lib/i18n/provider";
-import { cn } from "@/lib/utils";
+import { cn, localId } from "@/lib/utils";
 
 export type ToastVariant = "success" | "error" | "warning" | "info";
 
@@ -35,7 +35,7 @@ const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   push: (toast) =>
     set((state) => ({
-      toasts: [...state.toasts, { ...toast, id: crypto.randomUUID() }],
+      toasts: [...state.toasts, { ...toast, id: localId() }],
     })),
   dismiss: (id) =>
     set((state) => ({ toasts: state.toasts.filter((item) => item.id !== id) })),
@@ -96,6 +96,20 @@ export function Toaster() {
 
   return (
     <ToastPrimitive.Provider swipeDirection="right" duration={5000}>
+      {/* The viewport is rendered *before* the toasts, and unconditionally.
+          Each Toast.Root portals itself into this element, so it has to be
+          mounted and registered on the provider first: a Root that renders in
+          the same commit as its portal target returns null on that pass and
+          then inserts against a container React has not finished placing,
+          which surfaces as "insertBefore ... not a child of this node" and
+          takes down the whole tree via the error boundary. Keeping the
+          viewport first and always mounted makes the target a stable parent
+          that outlives every individual toast.
+
+          Positioned bottom-right on desktop, top on mobile where the thumb
+          rests low. */}
+      <ToastPrimitive.Viewport className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:inset-x-auto sm:bottom-0 sm:right-0 sm:top-auto sm:max-w-sm" />
+
       {toasts.map((item) => {
         const Icon = VARIANT_ICON[item.variant];
         return (
@@ -142,9 +156,6 @@ export function Toaster() {
           </ToastPrimitive.Root>
         );
       })}
-
-      {/* Bottom-right on desktop, top on mobile where the thumb rests low. */}
-      <ToastPrimitive.Viewport className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex max-h-screen w-full flex-col gap-2 p-4 sm:inset-x-auto sm:bottom-0 sm:right-0 sm:top-auto sm:max-w-sm" />
     </ToastPrimitive.Provider>
   );
 }
