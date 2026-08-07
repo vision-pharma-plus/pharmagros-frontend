@@ -40,6 +40,7 @@ import { computeLine, money, priceExclVat, priceInclVat } from "@/lib/format";
 import { translateError, translateErrorDetailed, useQuery } from "@/lib/hooks";
 import { useFormat, useLocale, useTranslation } from "@/lib/i18n/provider";
 import { useAuth } from "@/lib/stores/auth";
+import { localId } from "@/lib/utils";
 
 interface DraftLine {
   /** Local key; the server assigns real identifiers. */
@@ -53,7 +54,7 @@ interface DraftLine {
 }
 
 const emptyLine = (): DraftLine => ({
-  key: crypto.randomUUID(),
+  key: localId(),
   product: null,
   quantity: "",
   unitPrice: "",
@@ -212,7 +213,7 @@ export default function NewSalePage() {
         setNotes(sale.notes);
         setLines(
           sale.lines.map((line) => ({
-            key: crypto.randomUUID(),
+            key: localId(),
             product: byId.get(line.product) ?? null,
             quantity: line.quantity,
             // Back to the counter (VAT-inclusive) price the operator typed.
